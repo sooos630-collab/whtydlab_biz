@@ -1,22 +1,45 @@
 :root {
-  --sidebar-width: 260px;
+  --sidebar-width: 232px;
   --header-height: 56px;
 
-  --color-bg: #f5f6fa;
-  --color-sidebar: #1e1e2d;
-  --color-sidebar-hover: #2a2a3d;
-  --color-sidebar-active: #3a3a5c;
-  --color-sidebar-text: #a2a3b7;
-  --color-sidebar-text-active: #ffffff;
+  /* Toss color system */
+  --color-bg: #f4f6f8;
   --color-white: #ffffff;
-  --color-text: #1e1e2d;
-  --color-text-secondary: #7e8299;
-  --color-border: #e4e6ef;
-  --color-primary: #3699ff;
-  --color-primary-light: #e1f0ff;
-  --color-success: #1bc5bd;
-  --color-warning: #ffa800;
-  --color-danger: #f64e60;
+  --color-text: #191f28;
+  --color-text-secondary: #6b7684;
+  --color-text-tertiary: #b0b8c1;
+  --color-border: #e5e8eb;
+  --color-divider: #f2f4f6;
+
+  --color-primary: #3182f6;
+  --color-primary-light: #ebf4ff;
+  --color-primary-dark: #1b64da;
+
+  --color-success: #00c471;
+  --color-success-light: #e5faf0;
+  --color-warning: #f59e0b;
+  --color-warning-light: #fff8e6;
+  --color-danger: #f04452;
+  --color-danger-light: #ffebee;
+
+  --color-sidebar: #191b20;
+  --color-sidebar-hover: rgba(255, 255, 255, 0.06);
+  --color-sidebar-active: rgba(49, 130, 246, 0.15);
+  --color-sidebar-text: rgba(255, 255, 255, 0.45);
+  --color-sidebar-text-active: #ffffff;
+
+  --shadow-xs: 0 1px 2px rgba(0, 0, 0, 0.03);
+  --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.04), 0 1px 2px rgba(0, 0, 0, 0.02);
+  --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.06);
+  --shadow-lg: 0 8px 28px rgba(0, 0, 0, 0.1);
+
+  --radius-xs: 6px;
+  --radius-sm: 8px;
+  --radius-md: 12px;
+  --radius-lg: 16px;
+  --radius-xl: 20px;
+
+  --transition: 0.15s ease;
 }
 
 * {
@@ -31,12 +54,15 @@ html, body {
 }
 
 body {
-  font-family: 'Pretendard', -apple-system, BlinkMacSystemFont, 'Segoe UI',
-    Roboto, Oxygen, Ubuntu, sans-serif;
+  font-family: 'Pretendard Variable', 'Pretendard', -apple-system, BlinkMacSystemFont,
+    system-ui, Roboto, 'Helvetica Neue', 'Segoe UI', sans-serif;
   color: var(--color-text);
   background: var(--color-bg);
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+  font-size: 14px;
+  line-height: 1.5;
+  letter-spacing: -0.02em;
 }
 
 a {
@@ -46,4 +72,14 @@ a {
 
 ul, ol {
   list-style: none;
+}
+
+::selection {
+  background: var(--color-primary-light);
+  color: var(--color-primary-dark);
+}
+
+input, button, textarea, select {
+  font-family: inherit;
+  letter-spacing: inherit;
 }

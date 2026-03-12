@@ -1,0 +1,783 @@
+.page {
+  width: min(100%, 1220px);
+  margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+  padding: 6px 0 44px;
+}
+
+.headerCard,
+.dashboardSection {
+  background: var(--color-white);
+  border: 1px solid var(--color-border);
+  border-radius: 20px;
+  box-shadow: var(--shadow-xs);
+}
+
+.headerCard {
+  padding: 28px;
+  display: flex;
+  flex-direction: column;
+}
+
+.headerTop {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.brandRow {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.brandName {
+  font-size: 30px;
+  line-height: 1.1;
+  font-weight: 800;
+  letter-spacing: -0.04em;
+  color: var(--color-text);
+}
+
+.brandButton,
+.iconButton {
+  width: 34px;
+  height: 34px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid var(--color-border);
+  border-radius: 10px;
+  background: var(--color-white);
+  color: var(--color-text-secondary);
+  cursor: pointer;
+  transition:
+    border-color var(--transition),
+    color var(--transition),
+    background var(--transition);
+}
+
+.brandButton:hover,
+.iconButton:hover,
+.quickActionButton:hover,
+.outlineButton:hover,
+.selectorButton:hover {
+  border-color: #cfd7df;
+  color: var(--color-text);
+  background: #fcfdff;
+}
+
+.brandButton svg,
+.iconButton svg,
+.actionIcon svg {
+  width: 16px;
+  height: 16px;
+}
+
+.quickActionRow {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.quickActionButton,
+.outlineButton,
+.selectorButton,
+.primaryDarkButton {
+  min-height: 34px;
+  padding: 0 12px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  border-radius: 10px;
+  font-size: 12.5px;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  white-space: nowrap;
+}
+
+.quickActionButton {
+  border: 1px solid var(--color-border);
+  background: var(--color-white);
+  color: var(--color-text);
+}
+
+.actionIcon {
+  width: 16px;
+  height: 16px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--color-primary);
+}
+
+.dashboardSection {
+  padding: 28px;
+}
+
+.sectionEyebrowRow {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 18px;
+}
+
+.sectionChip {
+  min-height: 28px;
+  padding: 0 10px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 999px;
+  border: 1px solid rgba(49, 130, 246, 0.18);
+  background: rgba(49, 130, 246, 0.06);
+  color: var(--color-primary);
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.guideLink {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--color-primary);
+}
+
+.guideLink:hover {
+  color: var(--color-primary-dark);
+}
+
+.sectionHeader {
+  display: flex;
+  justify-content: space-between;
+  gap: 20px;
+  margin-bottom: 24px;
+}
+
+.cashSectionHeader {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-bottom: 24px;
+}
+
+.sectionHeadlineBlock {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.sectionHeadline {
+  max-width: 860px;
+  font-size: clamp(2rem, 2.6vw, 2.5rem);
+  line-height: 1.18;
+  font-weight: 800;
+  letter-spacing: -0.045em;
+  color: var(--color-text);
+}
+
+.headlineAccent {
+  color: var(--color-primary);
+}
+
+.cashLead {
+  max-width: 940px;
+  font-size: 14px;
+  line-height: 1.7;
+  color: var(--color-text-secondary);
+}
+
+.controlRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+
+.controlCluster,
+.selectorGroup,
+.monthNav {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.primaryDarkButton {
+  border: 1px solid #1f2937;
+  background: #1f2937;
+  color: var(--color-white);
+}
+
+.primaryDarkButton:hover {
+  background: #111827;
+  border-color: #111827;
+}
+
+.outlineButton,
+.selectorButton {
+  border: 1px solid var(--color-border);
+  background: var(--color-white);
+  color: var(--color-text);
+  cursor: pointer;
+}
+
+.metricGrid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 16px;
+  margin-bottom: 22px;
+}
+
+.cashStatGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 16px;
+  margin-bottom: 18px;
+}
+
+.cashStatCard,
+.metricCard {
+  min-height: 212px;
+  padding: 20px;
+  border: 1px solid var(--color-border);
+  border-radius: 18px;
+  background: #fcfdff;
+  display: flex;
+  flex-direction: column;
+}
+
+.cashStatCard {
+  min-height: 168px;
+  justify-content: space-between;
+}
+
+.cashStatLabel {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--color-text-secondary);
+}
+
+.cashStatValue {
+  font-size: clamp(1.85rem, 2.3vw, 2.4rem);
+  line-height: 1.08;
+  font-weight: 800;
+  letter-spacing: -0.05em;
+  color: var(--color-primary);
+}
+
+.cashStatMeta {
+  font-size: 12px;
+  line-height: 1.6;
+  color: var(--color-text-secondary);
+}
+
+.cashInputRow {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 12px;
+}
+
+.cashInput {
+  flex: 1;
+  min-width: 0;
+  height: 36px;
+  padding: 0 12px;
+  border: 1px solid var(--color-border);
+  border-radius: 10px;
+  background: var(--color-white);
+  color: var(--color-text);
+  font-size: 13px;
+  font-weight: 700;
+  outline: none;
+  transition:
+    border-color var(--transition),
+    background var(--transition);
+}
+
+.cashInput:focus {
+  border-color: rgba(49, 130, 246, 0.42);
+  background: #fcfdff;
+}
+
+.textButton {
+  height: 36px;
+  padding: 0 12px;
+  border: 1px solid var(--color-border);
+  border-radius: 10px;
+  background: var(--color-white);
+  color: var(--color-text-secondary);
+  font-size: 12px;
+  font-weight: 700;
+  white-space: nowrap;
+  cursor: pointer;
+  transition:
+    border-color var(--transition),
+    color var(--transition),
+    background var(--transition);
+}
+
+.textButton:hover {
+  border-color: #cfd7df;
+  color: var(--color-text);
+  background: #fcfdff;
+}
+
+.cashSaveButton {
+  min-width: 72px;
+  height: 36px;
+  padding: 0 14px;
+  border: 1px solid #1f2937;
+  border-radius: 10px;
+  background: #1f2937;
+  color: var(--color-white);
+  font-size: 12px;
+  font-weight: 800;
+  white-space: nowrap;
+  cursor: pointer;
+  transition:
+    border-color var(--transition),
+    background var(--transition),
+    opacity var(--transition);
+}
+
+.cashSaveButton:hover:not(:disabled) {
+  background: #111827;
+  border-color: #111827;
+}
+
+.cashSaveButton:disabled {
+  opacity: 0.48;
+  cursor: default;
+}
+
+.cashInputState {
+  margin-top: 8px;
+  font-size: 12px;
+  color: var(--color-primary);
+  font-weight: 600;
+}
+
+.metricHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.metricTitle {
+  font-size: 14px;
+  font-weight: 800;
+  color: var(--color-text);
+}
+
+.metricSubtitle {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--color-text-secondary);
+}
+
+.metricRateRow {
+  display: flex;
+  align-items: flex-end;
+  gap: 8px;
+  margin-top: 18px;
+}
+
+.metricRate {
+  font-size: 34px;
+  line-height: 1;
+  font-weight: 800;
+  letter-spacing: -0.05em;
+  color: var(--color-primary);
+}
+
+.metricUnit {
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--color-text-secondary);
+}
+
+.metricTrack {
+  height: 6px;
+  margin-top: 16px;
+  border-radius: 999px;
+  background: #edf1f5;
+  overflow: hidden;
+}
+
+.metricFill {
+  height: 100%;
+  border-radius: inherit;
+  background: var(--color-primary);
+}
+
+.metricStats {
+  margin-top: 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.metricStat {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.metricBadge {
+  min-height: 24px;
+  padding: 0 10px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 999px;
+  border: 1px solid var(--color-border);
+  background: #f8fafc;
+  color: var(--color-text-secondary);
+  font-size: 11px;
+  font-weight: 800;
+}
+
+.metricValue {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--color-text);
+  text-align: right;
+}
+
+.cashInsightGrid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 16px;
+}
+
+.cashInsightCard {
+  min-height: 180px;
+  padding: 20px;
+  border: 1px solid var(--color-border);
+  border-radius: 18px;
+  background: #fcfdff;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.cashInsightTitle {
+  font-size: 14px;
+  font-weight: 800;
+  color: var(--color-text);
+}
+
+.cashInsightText {
+  font-size: 13px;
+  line-height: 1.75;
+  color: var(--color-text);
+}
+
+.cashInsightMeta {
+  margin-top: auto;
+  font-size: 12px;
+  color: var(--color-text-secondary);
+}
+
+.riskBadgeRow {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.riskBadge {
+  min-height: 28px;
+  padding: 0 10px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 999px;
+  border: 1px solid rgba(49, 130, 246, 0.16);
+  background: rgba(49, 130, 246, 0.05);
+  color: var(--color-primary);
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.chartPanel {
+  border: 1px solid var(--color-border);
+  border-radius: 18px;
+  background: #fcfdff;
+  padding: 20px 20px 16px;
+}
+
+.chartLegend {
+  display: flex;
+  justify-content: flex-end;
+  gap: 16px;
+  margin-bottom: 10px;
+}
+
+.legendItem {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--color-text-secondary);
+}
+
+.legendSwatch {
+  width: 10px;
+  height: 10px;
+  border-radius: 999px;
+  display: inline-block;
+}
+
+.legendSwatchBlue {
+  background: var(--color-primary);
+}
+
+.legendSwatchGray {
+  background: #cbd5e1;
+}
+
+.chartSvg {
+  width: 100%;
+  display: block;
+}
+
+.gridLine {
+  stroke: #edf1f5;
+  stroke-width: 1;
+}
+
+.axisLine {
+  stroke: #dde4eb;
+  stroke-width: 1;
+}
+
+.axisText {
+  fill: #8a94a6;
+  font-size: 11px;
+  font-weight: 500;
+}
+
+.goalLine {
+  fill: none;
+  stroke: #cdd5df;
+  stroke-width: 2.2;
+}
+
+.actualLine {
+  fill: none;
+  stroke: var(--color-primary);
+  stroke-width: 2.6;
+}
+
+.goalPoint {
+  fill: var(--color-white);
+  stroke: #cdd5df;
+  stroke-width: 1.8;
+}
+
+.actualPoint {
+  fill: var(--color-white);
+  stroke: var(--color-primary);
+  stroke-width: 2;
+}
+
+.chartFooter {
+  margin-top: 16px;
+  display: flex;
+  gap: 18px;
+  flex-wrap: wrap;
+}
+
+.toggleItem {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--color-text-secondary);
+  font-size: 12.5px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.toggleItem input {
+  position: absolute;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.toggleTrack {
+  width: 34px;
+  height: 20px;
+  position: relative;
+  border-radius: 999px;
+  border: 1px solid var(--color-border);
+  background: #eef2f6;
+  transition:
+    background var(--transition),
+    border-color var(--transition);
+}
+
+.toggleThumb {
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 14px;
+  height: 14px;
+  border-radius: 999px;
+  background: var(--color-white);
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.08);
+  transition:
+    transform var(--transition),
+    background var(--transition);
+}
+
+.toggleItem input:checked + .toggleTrack {
+  background: rgba(49, 130, 246, 0.16);
+  border-color: rgba(49, 130, 246, 0.34);
+}
+
+.toggleItem input:checked + .toggleTrack .toggleThumb {
+  transform: translateX(14px);
+  background: var(--color-primary);
+}
+
+.revenueSummaryGrid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px;
+  margin-bottom: 22px;
+}
+
+.revenueSummaryCard {
+  min-height: 112px;
+  padding: 22px;
+  border: 1px solid var(--color-border);
+  border-radius: 18px;
+  background: #fcfdff;
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.revenueSummaryLabel {
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--color-text-secondary);
+}
+
+.revenueSummaryValue {
+  margin-left: auto;
+  text-align: right;
+  font-size: clamp(1.9rem, 2.3vw, 2.35rem);
+  line-height: 1;
+  font-weight: 800;
+  letter-spacing: -0.05em;
+  color: var(--color-primary);
+}
+
+.revenueBar {
+  fill: rgba(49, 130, 246, 0.8);
+}
+
+.revenueBarActive {
+  fill: var(--color-primary);
+}
+
+@media (max-width: 1120px) {
+  .cashInsightGrid,
+  .metricGrid,
+  .revenueSummaryGrid {
+    grid-template-columns: 1fr;
+  }
+
+  .cashStatGrid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .controlRow {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+}
+
+@media (max-width: 768px) {
+  .page {
+    gap: 18px;
+  }
+
+  .headerCard,
+  .dashboardSection {
+    padding: 20px;
+    border-radius: 18px;
+  }
+
+  .headerCard {
+    padding: 20px;
+  }
+
+  .brandName {
+    font-size: 26px;
+  }
+
+  .sectionHeadline {
+    font-size: 1.8rem;
+  }
+
+  .quickActionRow,
+  .cashStatGrid,
+  .controlCluster,
+  .selectorGroup,
+  .chartFooter {
+    width: 100%;
+  }
+
+  .selectorGroup {
+    justify-content: flex-start;
+  }
+
+  .chartPanel {
+    padding: 16px 14px 14px;
+  }
+}
+
+@media (max-width: 560px) {
+  .metricCard,
+  .revenueSummaryCard {
+    padding: 18px;
+  }
+
+  .cashInputRow,
+  .metricStat,
+  .revenueSummaryCard {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .cashStatGrid {
+    grid-template-columns: 1fr;
+  }
+
+  .revenueSummaryValue {
+    margin-left: 0;
+    text-align: left;
+  }
+
+  .sectionHeadline {
+    font-size: 1.6rem;
+  }
+
+  .chartLegend {
+    justify-content: flex-start;
+    flex-wrap: wrap;
+  }
+}
