@@ -135,85 +135,120 @@ export default function ProjectContractsPage() {
     <th style={{ textAlign: align, cursor: k ? "pointer" : undefined, userSelect: "none" }} onClick={k ? () => projToggleSort(k) : undefined}>{children}{k ? projSortArrow(k) : ""}</th>
   );
 
+  const filteredTotalSupply = projFiltered.reduce((a, p) => a + p.supply_amount, 0);
+  const filteredTotalVat = projFiltered.reduce((a, p) => a + p.vat_amount, 0);
+  const filteredTotalAmount = projFiltered.reduce((a, p) => a + p.total_amount_num, 0);
+  const filteredTotalCollected = projFiltered.reduce((a, p) => a + p.collected_amount, 0);
+  const filteredTotalRemaining = projFiltered.reduce((a, p) => a + p.remaining_amount, 0);
+  const filteredTotalInputCost = projFiltered.reduce((a, p) => a + p.input_cost, 0);
+  const filteredTotalProfit = projFiltered.reduce((a, p) => a + p.net_profit, 0);
+  const filteredCollectionRate = filteredTotalAmount > 0 ? Math.round(filteredTotalCollected / filteredTotalAmount * 100) : 0;
+  const filteredProfitRate = filteredTotalCollected > 0 ? (filteredTotalProfit / filteredTotalCollected * 100).toFixed(1) : "-";
+
   return (
     <>
       <Head><title>프로젝트 관리 - WHYDLAB BIZ</title></Head>
-      <div className={s.page} style={{ maxWidth: "100%" }}>
-        {/* 헤더 */}
-        <div className={s.pageHeader} style={{ flexWrap: "wrap", gap: 10 }}>
-          <h1>프로젝트 관리 <span className={s.count}>진행 {projActiveCount}건 / 전체 {projList.length}건</span></h1>
+      <div className={s.projPage}>
+        {/* 헤더 + 액션 */}
+        <div className={s.projPageHeader}>
+          <h1 className={s.projPageTitle}>
+            프로젝트 관리
+            <span className={s.projPageCount}>진행 {projActiveCount} / 전체 {projList.length}</span>
+          </h1>
+          <div className={s.projActions}>
+            <button className={`${s.btn} ${s.btnSmall} ${s.btnPrimary}`} onClick={handleProjAdd}>+ 추가</button>
+            <button className={`${s.btn} ${s.btnSmall}`} onClick={() => projCsvInputRef.current?.click()}>CSV 반영</button>
+            <button className={`${s.btn} ${s.btnSmall}`} onClick={handleProjExportExcel}>엑셀 다운</button>
+            <input ref={projCsvInputRef} type="file" accept=".csv,text/csv" className={s.fileInputHidden} onChange={handleProjCsvChange} />
+          </div>
         </div>
 
         {/* 요약 카드 */}
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(140px, 1fr))", gap: 10, marginBottom: 16 }}>
-          <div className={s.summaryCard}><div className={s.summaryLabel}>전체</div><div className={s.summaryValue}>{projList.length}<span style={{ fontSize: 14, fontWeight: 500, color: "var(--color-text-secondary)", marginLeft: 2 }}>건</span></div></div>
-          <div className={s.summaryCard}><div className={s.summaryLabel}>총 공급가액</div><div className={s.summaryValue}>{fmtManAmt(projTotalSupply)}</div></div>
-          <div className={s.summaryCard}><div className={s.summaryLabel}>수금액</div><div className={s.summaryValue} style={{ color: "var(--color-primary)" }}>{fmtManAmt(projTotalCollected)}</div></div>
-          <div className={s.summaryCard}><div className={s.summaryLabel}>잔여금</div><div className={s.summaryValue} style={{ color: projTotalRemaining > 0 ? "#b45309" : "var(--color-text)" }}>{fmtManAmt(projTotalRemaining)}</div></div>
-          <div className={s.summaryCard}><div className={s.summaryLabel}>순이익 합계</div><div className={s.summaryValue} style={{ color: "var(--color-success)" }}>{fmtManAmt(projTotalProfit)}</div></div>
-          <div className={s.summaryCard}><div className={s.summaryLabel}>평균 수금율</div><div className={s.summaryValue}>{projAvgRate}<span style={{ fontSize: 14, fontWeight: 500, marginLeft: 1 }}>%</span></div></div>
+        <div className={s.projSummaryGrid}>
+          <div className={s.projSummaryCard}>
+            <span className={s.projSummaryLabel}>총 공급가액</span>
+            <strong className={s.projSummaryValue}>{fmtManAmt(projTotalSupply)}</strong>
+          </div>
+          <div className={s.projSummaryCard}>
+            <span className={s.projSummaryLabel}>수금액</span>
+            <strong className={`${s.projSummaryValue} ${s.projSummaryPrimary}`}>{fmtManAmt(projTotalCollected)}</strong>
+          </div>
+          <div className={s.projSummaryCard}>
+            <span className={s.projSummaryLabel}>잔여금</span>
+            <strong className={`${s.projSummaryValue} ${projTotalRemaining > 0 ? s.projSummaryWarn : ""}`}>{fmtManAmt(projTotalRemaining)}</strong>
+          </div>
+          <div className={s.projSummaryCard}>
+            <span className={s.projSummaryLabel}>순이익</span>
+            <strong className={`${s.projSummaryValue} ${s.projSummarySuccess}`}>{fmtManAmt(projTotalProfit)}</strong>
+          </div>
+          <div className={s.projSummaryCard}>
+            <span className={s.projSummaryLabel}>평균 수금율</span>
+            <strong className={s.projSummaryValue}>{projAvgRate}%</strong>
+          </div>
         </div>
 
         {/* 필터 + 검색 */}
-        <div style={{ display: "flex", gap: 4, marginBottom: 8, flexWrap: "wrap" }}>
-          {(["all", "제안", "계약완료", "진행중", "납품완료", "정산완료"] as const).map((f) => {
-            const c = f === "all" ? projList.length : projList.filter((p) => p.status === f).length;
-            return <button key={f} className={`${s.btn} ${s.btnSmall} ${projStatusFilter === f ? s.btnPrimary : ""}`} onClick={() => setProjStatusFilter(f)}>{f === "all" ? "전체" : f}<span style={{ marginLeft: 3, fontSize: 11, opacity: 0.7 }}>{c}</span></button>;
-          })}
-        </div>
-        <div className={s.projectActionBar}>
-          <div className={s.projectActionGroup}>
-            <button className={`${s.btn} ${s.btnSmall} ${s.btnPrimary}`} onClick={handleProjAdd}>+ 프로젝트 추가</button>
-            <button className={`${s.btn} ${s.btnSmall}`} onClick={() => projCsvInputRef.current?.click()}>CSV 일괄 반영</button>
-            <button className={`${s.btn} ${s.btnSmall}`} onClick={handleProjExportExcel}>전체표 엑셀 다운로드</button>
-            <input ref={projCsvInputRef} type="file" accept=".csv,text/csv" className={s.fileInputHidden} onChange={handleProjCsvChange} />
+        <div className={s.projFilterBar}>
+          <div className={s.projFilterTabs}>
+            {(["all", "제안", "계약완료", "진행중", "납품완료", "정산완료"] as const).map((f) => {
+              const c = f === "all" ? projList.length : projList.filter((p) => p.status === f).length;
+              return (
+                <button key={f} className={`${s.projFilterTab} ${projStatusFilter === f ? s.projFilterTabActive : ""}`} onClick={() => setProjStatusFilter(f)}>
+                  {f === "all" ? "전체" : f}
+                  <span className={s.projFilterCount}>{c}</span>
+                </button>
+              );
+            })}
           </div>
-          <div className={s.projectActionHint}>CSV는 `코드넘버` 또는 `ID` 기준으로 기존 프로젝트를 업데이트하고, 없는 항목은 신규 추가합니다.</div>
+          <div className={s.projSearchWrap}>
+            <input className={s.projSearchInput} placeholder="코드, 회사명, 프로젝트명, 인원 검색" value={projSearch} onChange={(e) => setProjSearch(e.target.value)} />
+          </div>
         </div>
+
         {projImportNotice && (
           <div className={`${s.projectImportNotice} ${projImportNotice.tone === "success" ? s.projectImportNoticeSuccess : s.projectImportNoticeError}`}>
             {projImportNotice.text}
           </div>
         )}
-        <div className={s.toolbar} style={{ marginBottom: 8 }}>
-          <div className={s.toolbarSearch}>
-            <span className={s.toolbarSearchIcon}>🔍</span>
-            <input className={s.toolbarSearchInput} placeholder="코드, 회사명, 프로젝트명, 투입인원 검색..." value={projSearch} onChange={(e) => setProjSearch(e.target.value)} />
-          </div>
-        </div>
 
         {/* 테이블 */}
-        <div className={s.section} style={{ padding: 0, overflow: "auto" }}>
+        <div className={s.projTableWrap}>
+          <div className={s.projScrollHint}>
+            <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><path d="M3 8h10M11 5.5 13.5 8 11 10.5M5 5.5 2.5 8 5 10.5"/></svg>
+            좌우 스크롤로 전체 항목을 확인하세요
+          </div>
           <table className={s.projTable}>
             <thead>
               <tr className={s.projGroupRow}>
                 <th colSpan={5}>기본정보</th>
                 <th colSpan={2}>기간</th>
                 <th colSpan={3}>금액</th>
-                <th colSpan={3} style={{ background: "rgba(49,130,246,0.06)" }}>청구</th>
-                <th colSpan={3} style={{ background: "rgba(0,196,113,0.06)" }}>수금</th>
-                <th colSpan={3} style={{ background: "rgba(180,83,9,0.06)" }}>수금현황</th>
-                <th colSpan={3} style={{ background: "rgba(99,102,241,0.06)" }}>수익</th>
+                <th colSpan={3} className={s.projGroupBilling}>청구</th>
+                <th colSpan={3} className={s.projGroupCollect}>수금</th>
+                <th colSpan={3} className={s.projGroupStatus}>수금현황</th>
+                <th colSpan={3} className={s.projGroupProfit}>수익</th>
                 <th>인원</th>
               </tr>
               <tr>
                 <ProjTH k="contract_number">코드넘버</ProjTH>
                 <th>회사명</th><th>세부내역</th><th>수주경로</th>
-                <th style={{ textAlign: "center" }}>세금계산서</th>
+                <th className={s.projThCenter}>세금계산서</th>
                 <ProjTH k="start_date">시작</ProjTH><th>종료</th>
                 <ProjTH k="total_amount_num" align="right">공급가액</ProjTH>
-                <th style={{ textAlign: "right" }}>부가세</th><th style={{ textAlign: "right" }}>총금액</th>
-                <th style={{ textAlign: "right", background: "rgba(49,130,246,0.04)" }}>착수금</th>
-                <th style={{ textAlign: "right", background: "rgba(49,130,246,0.04)" }}>중도금</th>
-                <th style={{ textAlign: "right", background: "rgba(49,130,246,0.04)" }}>잔금</th>
-                <th style={{ textAlign: "right", background: "rgba(0,196,113,0.04)" }}>착수금</th>
-                <th style={{ textAlign: "right", background: "rgba(0,196,113,0.04)" }}>중도금</th>
-                <th style={{ textAlign: "right", background: "rgba(0,196,113,0.04)" }}>잔금</th>
-                <th style={{ textAlign: "right" }}>수금액</th><th style={{ textAlign: "right" }}>잔여금</th>
+                <th className={s.projThRight}>부가세</th>
+                <th className={s.projThRight}>총금액</th>
+                <th className={`${s.projThRight} ${s.projThBilling}`}>착수금</th>
+                <th className={`${s.projThRight} ${s.projThBilling}`}>중도금</th>
+                <th className={`${s.projThRight} ${s.projThBilling}`}>잔금</th>
+                <th className={`${s.projThRight} ${s.projThCollect}`}>착수금</th>
+                <th className={`${s.projThRight} ${s.projThCollect}`}>중도금</th>
+                <th className={`${s.projThRight} ${s.projThCollect}`}>잔금</th>
+                <th className={s.projThRight}>수금액</th>
+                <th className={s.projThRight}>잔여금</th>
                 <ProjTH k="collection_rate" align="right">수금율</ProjTH>
-                <th style={{ textAlign: "right" }}>투입원가</th>
+                <th className={s.projThRight}>투입원가</th>
                 <ProjTH k="net_profit_rate" align="right">이익률</ProjTH>
-                <th style={{ textAlign: "right" }}>순이익금</th>
+                <th className={s.projThRight}>순이익금</th>
                 <th>투입인원</th>
               </tr>
             </thead>
@@ -224,7 +259,7 @@ export default function ProjectContractsPage() {
                   <td className={s.projClient}>{p.client}</td>
                   <td className={s.projDesc}>{p.description}</td>
                   <td><span className={`${s.badge} ${channelBadge(p.acquisition_channel)}`}>{p.acquisition_channel}</span></td>
-                  <td style={{ textAlign: "center" }}>{p.invoice_issued ? <span style={{ color: "var(--color-success)", fontWeight: 700, fontSize: 12 }}>발행</span> : <span style={{ color: "var(--color-text-tertiary)", fontSize: 12 }}>미발행</span>}</td>
+                  <td className={s.projInvoiceCell}>{p.invoice_issued ? <span className={s.projInvoiceYes}>발행</span> : <span className={s.projInvoiceNo}>미발행</span>}</td>
                   <td className={s.projDate}>{p.start_date}</td>
                   <td className={s.projDate}>{p.end_date}</td>
                   <td className={s.projAmountBold}>{fmtNum(p.supply_amount)}</td>
@@ -237,11 +272,11 @@ export default function ProjectContractsPage() {
                   <td className={s.projAmountCollected}>{p.collected_interim > 0 ? fmtNum(p.collected_interim) : "-"}</td>
                   <td className={s.projAmountCollected}>{p.collected_final > 0 ? fmtNum(p.collected_final) : "-"}</td>
                   <td className={s.projAmountBold}>{p.collected_amount > 0 ? fmtNum(p.collected_amount) : "-"}</td>
-                  <td style={{ textAlign: "right", whiteSpace: "nowrap", fontSize: 12, color: p.remaining_amount > 0 ? "#b45309" : "var(--color-text-tertiary)" }}>{p.remaining_amount > 0 ? fmtNum(p.remaining_amount) : "-"}</td>
-                  <td style={{ textAlign: "right", whiteSpace: "nowrap", fontSize: 12, fontWeight: 700, color: p.collection_rate >= 100 ? "var(--color-success)" : "var(--color-text)" }}>{p.collection_rate > 0 ? `${p.collection_rate}%` : "-"}</td>
+                  <td className={`${s.projAmountBold} ${p.remaining_amount > 0 ? s.projWarnText : s.projMutedText}`}>{p.remaining_amount > 0 ? fmtNum(p.remaining_amount) : "-"}</td>
+                  <td className={`${s.projAmountBold} ${p.collection_rate >= 100 ? s.projSuccessText : ""}`}>{p.collection_rate > 0 ? `${p.collection_rate}%` : "-"}</td>
                   <td className={s.projAmount}>{p.input_cost > 0 ? fmtNum(p.input_cost) : "-"}</td>
-                  <td style={{ textAlign: "right", whiteSpace: "nowrap", fontSize: 12, fontWeight: 700, color: rateColor(p.net_profit_rate) }}>{p.net_profit_rate > 0 ? `${p.net_profit_rate}%` : "-"}</td>
-                  <td style={{ textAlign: "right", whiteSpace: "nowrap", fontSize: 12, fontWeight: 700, color: p.net_profit > 0 ? "var(--color-success)" : p.net_profit < 0 ? "var(--color-danger)" : "var(--color-text-tertiary)" }}>{p.net_profit !== 0 ? fmtNum(p.net_profit) : "-"}</td>
+                  <td className={s.projAmountBold} style={{ color: rateColor(p.net_profit_rate) }}>{p.net_profit_rate > 0 ? `${p.net_profit_rate}%` : "-"}</td>
+                  <td className={`${s.projAmountBold} ${p.net_profit > 0 ? s.projSuccessText : p.net_profit < 0 ? s.projDangerText : s.projMutedText}`}>{p.net_profit !== 0 ? fmtNum(p.net_profit) : "-"}</td>
                   <td className={s.projMembers}>{p.team_members.map((m) => <span key={m} className={s.projMemberChip}>{m}</span>)}</td>
                 </tr>
               ))}
@@ -250,27 +285,23 @@ export default function ProjectContractsPage() {
             {projFiltered.length > 0 && (
               <tfoot>
                 <tr className={s.projTotalRow}>
-                  <td colSpan={2} style={{ fontWeight: 700 }}>합계 ({projFiltered.length}건)</td>
+                  <td colSpan={2} className={s.projTotalLabel}>합계 ({projFiltered.length}건)</td>
                   <td colSpan={5} />
-                  <td className={s.projAmountBold}>{fmtNum(projFiltered.reduce((a, p) => a + p.supply_amount, 0))}</td>
-                  <td className={s.projAmount}>{fmtNum(projFiltered.reduce((a, p) => a + p.vat_amount, 0))}</td>
-                  <td className={s.projAmountPrimary}>{fmtNum(projFiltered.reduce((a, p) => a + p.total_amount_num, 0))}</td>
+                  <td className={s.projAmountBold}>{fmtNum(filteredTotalSupply)}</td>
+                  <td className={s.projAmount}>{fmtNum(filteredTotalVat)}</td>
+                  <td className={s.projAmountPrimary}>{fmtNum(filteredTotalAmount)}</td>
                   <td className={s.projAmountBilling}>{fmtNum(projFiltered.reduce((a, p) => a + p.billing_initial, 0))}</td>
                   <td className={s.projAmountBilling}>{fmtNum(projFiltered.reduce((a, p) => a + p.billing_interim, 0))}</td>
                   <td className={s.projAmountBilling}>{fmtNum(projFiltered.reduce((a, p) => a + p.billing_final, 0))}</td>
                   <td className={s.projAmountCollected}>{fmtNum(projFiltered.reduce((a, p) => a + p.collected_initial, 0))}</td>
                   <td className={s.projAmountCollected}>{fmtNum(projFiltered.reduce((a, p) => a + p.collected_interim, 0))}</td>
                   <td className={s.projAmountCollected}>{fmtNum(projFiltered.reduce((a, p) => a + p.collected_final, 0))}</td>
-                  <td className={s.projAmountBold}>{fmtNum(projFiltered.reduce((a, p) => a + p.collected_amount, 0))}</td>
-                  <td style={{ textAlign: "right", whiteSpace: "nowrap", fontSize: 12, fontWeight: 700, color: "#b45309" }}>{fmtNum(projFiltered.reduce((a, p) => a + p.remaining_amount, 0))}</td>
-                  <td style={{ textAlign: "right", whiteSpace: "nowrap", fontSize: 12, fontWeight: 700 }}>
-                    {(() => { const t = projFiltered.reduce((a, p) => a + p.total_amount_num, 0); const c = projFiltered.reduce((a, p) => a + p.collected_amount, 0); return t > 0 ? Math.round(c / t * 100) + "%" : "-"; })()}
-                  </td>
-                  <td className={s.projAmount}>{fmtNum(projFiltered.reduce((a, p) => a + p.input_cost, 0))}</td>
-                  <td style={{ textAlign: "right", whiteSpace: "nowrap", fontSize: 12, fontWeight: 700 }}>
-                    {(() => { const c = projFiltered.reduce((a, p) => a + p.collected_amount, 0); const pr = projFiltered.reduce((a, p) => a + p.net_profit, 0); return c > 0 ? (pr / c * 100).toFixed(1) + "%" : "-"; })()}
-                  </td>
-                  <td style={{ textAlign: "right", whiteSpace: "nowrap", fontSize: 12, fontWeight: 700, color: "var(--color-success)" }}>{fmtNum(projFiltered.reduce((a, p) => a + p.net_profit, 0))}</td>
+                  <td className={s.projAmountBold}>{fmtNum(filteredTotalCollected)}</td>
+                  <td className={`${s.projAmountBold} ${s.projWarnText}`}>{fmtNum(filteredTotalRemaining)}</td>
+                  <td className={s.projAmountBold}>{filteredCollectionRate > 0 ? `${filteredCollectionRate}%` : "-"}</td>
+                  <td className={s.projAmount}>{fmtNum(filteredTotalInputCost)}</td>
+                  <td className={s.projAmountBold}>{filteredProfitRate !== "-" ? `${filteredProfitRate}%` : "-"}</td>
+                  <td className={`${s.projAmountBold} ${s.projSuccessText}`}>{fmtNum(filteredTotalProfit)}</td>
                   <td />
                 </tr>
               </tfoot>

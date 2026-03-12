@@ -1705,10 +1705,245 @@
 }
 
 /* ── Project contract table ── */
+/* ── Project page layout ── */
+.projPage {
+  width: 100%;
+}
+
+.projPageHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin-bottom: 14px;
+}
+
+.projPageTitle {
+  font-size: 20px;
+  font-weight: 800;
+  letter-spacing: -0.04em;
+  color: var(--color-text);
+}
+
+.projPageCount {
+  font-size: 13px;
+  color: var(--color-text-secondary);
+  font-weight: 400;
+  margin-left: 10px;
+}
+
+.projActions {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.projSummaryGrid {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 10px;
+  margin-bottom: 14px;
+}
+
+.projSummaryCard {
+  background: var(--color-white);
+  box-shadow: var(--shadow-sm);
+  border-radius: var(--radius-lg);
+  padding: 14px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.projSummaryLabel {
+  font-size: 11px;
+  color: var(--color-text-secondary);
+  font-weight: 600;
+}
+
+.projSummaryValue {
+  font-size: 18px;
+  font-weight: 800;
+  letter-spacing: -0.03em;
+  color: var(--color-text);
+  line-height: 1.2;
+}
+
+.projSummaryPrimary { color: var(--color-primary); }
+.projSummarySuccess { color: var(--color-success); }
+.projSummaryWarn { color: #b45309; }
+
+.projFilterBar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 10px;
+  flex-wrap: wrap;
+}
+
+.projFilterTabs {
+  display: flex;
+  gap: 4px;
+  flex-wrap: wrap;
+}
+
+.projFilterTab {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 5px 10px;
+  border-radius: var(--radius-sm);
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  border: none;
+  background: var(--color-white);
+  color: var(--color-text-secondary);
+  box-shadow: inset 0 0 0 1px var(--color-border);
+  transition: all var(--transition);
+  font-family: inherit;
+}
+
+.projFilterTab:hover {
+  background: var(--color-divider);
+}
+
+.projFilterTabActive {
+  background: var(--color-primary);
+  color: white;
+  box-shadow: none;
+}
+
+.projFilterTabActive:hover {
+  background: var(--color-primary-dark);
+}
+
+.projFilterCount {
+  font-size: 10px;
+  opacity: 0.7;
+}
+
+.projSearchWrap {
+  flex: 0 1 280px;
+  min-width: 180px;
+}
+
+.projSearchInput {
+  width: 100%;
+  padding: 6px 12px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  font-size: 12px;
+  font-family: inherit;
+  outline: none;
+  background: var(--color-white);
+  color: var(--color-text);
+  transition: border-color var(--transition);
+}
+
+.projSearchInput::placeholder {
+  color: var(--color-text-tertiary);
+}
+
+.projSearchInput:focus {
+  border-color: var(--color-primary);
+}
+
+.projTableWrap {
+  background: var(--color-white);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-sm);
+  overflow-x: auto;
+  overflow-y: visible;
+  position: relative;
+  -webkit-overflow-scrolling: touch;
+}
+
+.projTableWrap::-webkit-scrollbar {
+  height: 8px;
+}
+
+.projTableWrap::-webkit-scrollbar-track {
+  background: var(--color-bg);
+  border-radius: 4px;
+}
+
+.projTableWrap::-webkit-scrollbar-thumb {
+  background: #c1c8d0;
+  border-radius: 4px;
+}
+
+.projTableWrap::-webkit-scrollbar-thumb:hover {
+  background: #a0a8b4;
+}
+
+.projScrollHint {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  font-size: 11px;
+  color: var(--color-text-tertiary);
+  background: var(--color-bg);
+  border-bottom: 1px solid var(--color-border);
+  border-radius: var(--radius-lg) var(--radius-lg) 0 0;
+}
+
+.projScrollHint svg {
+  width: 14px;
+  height: 14px;
+  flex-shrink: 0;
+}
+
+/* ── Project table header cell helpers ── */
+.projThRight { text-align: right; }
+.projThCenter { text-align: center; }
+.projThBilling { background: rgba(49, 130, 246, 0.04); }
+.projThCollect { background: rgba(0, 196, 113, 0.04); }
+
+.projGroupBilling { background: rgba(49, 130, 246, 0.06) !important; }
+.projGroupCollect { background: rgba(0, 196, 113, 0.06) !important; }
+.projGroupStatus { background: rgba(180, 83, 9, 0.06) !important; }
+.projGroupProfit { background: rgba(99, 102, 241, 0.06) !important; }
+
+.projInvoiceCell { text-align: center; }
+.projInvoiceYes { color: var(--color-success); font-weight: 700; font-size: 12px; }
+.projInvoiceNo { color: var(--color-text-tertiary); font-size: 12px; }
+
+.projWarnText { color: #b45309 !important; }
+.projSuccessText { color: var(--color-success) !important; }
+.projDangerText { color: var(--color-danger) !important; }
+.projMutedText { color: var(--color-text-tertiary) !important; }
+
+.projTotalLabel { font-weight: 700; }
+
 .projTable {
   width: 100%;
   min-width: 2200px;
   border-collapse: collapse;
+}
+
+@media (max-width: 900px) {
+  .projSummaryGrid {
+    grid-template-columns: repeat(3, 1fr);
+  }
+}
+
+@media (max-width: 600px) {
+  .projSummaryGrid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  .projFilterBar {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .projSearchWrap {
+    flex: 1;
+  }
 }
 
 .projTable th {

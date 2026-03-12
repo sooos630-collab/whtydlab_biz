@@ -453,6 +453,26 @@ interface GoalLineChartProps {
   onToggleOrderAmount: () => void;
 }
 
+function formatAxisLabel(value: number) {
+  if (value === 0) return "0";
+  if (value >= 100000000) return `${(value / 100000000).toFixed(0)}억`;
+  if (value >= 10000) return `${(value / 10000).toLocaleString()}만`;
+  return value.toLocaleString();
+}
+
+function computeNiceScale(dataMax: number, tickCount: number) {
+  const maxVal = dataMax > 0 ? dataMax : 10000000;
+  const rawStep = maxVal / tickCount;
+  const mag = Math.pow(10, Math.floor(Math.log10(rawStep)));
+  const res = rawStep / mag;
+  const niceRes = res <= 1 ? 1 : res <= 2 ? 2 : res <= 5 ? 5 : 10;
+  const step = niceRes * mag;
+  const niceMax = Math.ceil(maxVal / step) * step;
+  const ticks: number[] = [];
+  for (let i = 0; i <= tickCount; i++) ticks.push(Math.round(step * i));
+  return { yMax: niceMax, ticks };
+}
+
 function GoalLineChart({
   actualValues,
   targetValues,
@@ -467,13 +487,13 @@ function GoalLineChart({
     ? baseValues.map((value, index) => (targetValues[index] > 0 ? (value / targetValues[index]) * 100 : 0))
     : baseValues;
   const goalLineValues = showPercent ? targetValues.map(() => 100) : targetValues;
-  const yMax = showPercent
-    ? Math.max(180, ...plotValues, ...goalLineValues)
-    : Math.max(18000000, ...plotValues, ...goalLineValues);
-  const ticks = showPercent ? [0, 60, 120, 180] : [0, 6000000, 12000000, 18000000];
+  const dataMax = Math.max(...plotValues, ...goalLineValues, 1);
+  const { yMax, ticks } = showPercent
+    ? (() => { const m = Math.ceil(dataMax / 50) * 50 || 200; const s = m / 4; return { yMax: m, ticks: Array.from({ length: 5 }, (_, i) => Math.round(s * i)) }; })()
+    : computeNiceScale(dataMax * 1.15, 4);
   const width = 920;
   const height = 300;
-  const margin = { top: 20, right: 20, bottom: 42, left: 58 };
+  const margin = { top: 20, right: 20, bottom: 42, left: 72 };
   const innerWidth = width - margin.left - margin.right;
   const innerHeight = height - margin.top - margin.bottom;
   const xPoints = MONTHS.map(
@@ -504,7 +524,7 @@ function GoalLineChart({
             <g key={tick}>
               <line x1={margin.left} y1={y} x2={width - margin.right} y2={y} className={s.gridLine} />
               <text x={margin.left - 10} y={y + 4} textAnchor="end" className={s.axisText}>
-                {showPercent ? `${tick}%` : formatCurrency(tick)}
+                {showPercent ? `${tick}%` : formatAxisLabel(tick)}
               </text>
             </g>
           );
@@ -583,11 +603,11 @@ function RevenueBarChart({
 }) {
   const width = 920;
   const height = 300;
-  const margin = { top: 18, right: 20, bottom: 42, left: 58 };
+  const margin = { top: 18, right: 20, bottom: 42, left: 72 };
   const innerWidth = width - margin.left - margin.right;
   const innerHeight = height - margin.top - margin.bottom;
-  const yMax = 20000000;
-  const ticks = [0, 5000000, 10000000, 15000000, 20000000];
+  const dataMax = Math.max(...values, 1);
+  const { yMax, ticks } = computeNiceScale(dataMax * 1.15, 4);
   const gap = 14;
   const barWidth = (innerWidth - gap * (MONTHS.length - 1)) / MONTHS.length;
 
@@ -603,7 +623,7 @@ function RevenueBarChart({
             <g key={tick}>
               <line x1={margin.left} y1={y} x2={width - margin.right} y2={y} className={s.gridLine} />
               <text x={margin.left - 10} y={y + 4} textAnchor="end" className={s.axisText}>
-                {formatCurrency(tick)}
+                {formatAxisLabel(tick)}
               </text>
             </g>
           );
