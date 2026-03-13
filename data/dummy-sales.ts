@@ -1,35 +1,76 @@
 // TODO: DB 연동 시 이 파일 삭제
 
-// ── 문의폼 ──
-export interface Inquiry {
-  id: string;
-  name: string;
-  company: string;
-  email: string;
-  phone: string;
-  type: "웹사이트" | "앱" | "브랜딩" | "기타";
-  message: string;
-  source: "홈페이지" | "나라장터" | "소개" | "SNS";
-  status: "신규" | "확인" | "응답완료" | "의뢰전환";
-  created_at: string;
+// ── 폼 빌더 ──
+export type FormFieldType = "text" | "textarea" | "select" | "checkbox" | "file";
+
+export interface FormFieldOption {
+  label: string;
+  value: string;
 }
 
-export const dummyInquiries: Inquiry[] = [
-  { id: "inq-01", name: "정유진", company: "그린에너지", email: "yj@green.kr", phone: "031-7777-8888", type: "웹사이트", message: "ESG 보고서 시스템 구축 문의합니다", source: "나라장터", status: "확인", created_at: "2025-03-11" },
-  { id: "inq-02", name: "한승우", company: "블루오션마케팅", email: "sw@blue.kr", phone: "02-3333-4444", type: "브랜딩", message: "CI 리뉴얼 견적 요청합니다", source: "홈페이지", status: "신규", created_at: "2025-03-12" },
-  { id: "inq-03", name: "오수빈", company: "에듀플러스", email: "sb@edu.com", phone: "02-1111-2222", type: "웹사이트", message: "LMS 플랫폼 개발 관련 상담 요청", source: "소개", status: "의뢰전환", created_at: "2025-03-03" },
-  { id: "inq-04", name: "김민재", company: "넥스트핀테크", email: "mj@nextfin.kr", phone: "02-8888-9999", type: "앱", message: "핀테크 앱 UI/UX 디자인 의뢰", source: "SNS", status: "응답완료", created_at: "2025-03-08" },
-  { id: "inq-05", name: "이서연", company: "헬스케어랩", email: "sy@hclab.kr", phone: "010-5555-6666", type: "기타", message: "건강관리 대시보드 컨설팅 문의", source: "홈페이지", status: "신규", created_at: "2025-03-12" },
+export interface FormField {
+  id: string;
+  type: FormFieldType;
+  label: string;
+  placeholder: string;
+  required: boolean;
+  options: FormFieldOption[];
+}
+
+export interface InquiryForm {
+  id: string;
+  name: string;
+  description: string;
+  fields: FormField[];
+  status: "활성" | "비활성";
+  created_at: string;
+  updated_at: string;
+}
+
+export const dummyInquiryForms: InquiryForm[] = [
+  {
+    id: "form-01", name: "웹사이트 문의용", description: "홈페이지에 삽입할 기본 문의폼", status: "활성", created_at: "2025-02-15", updated_at: "2025-03-10",
+    fields: [
+      { id: "f01", type: "text", label: "이름", placeholder: "이름을 입력하세요", required: true, options: [] },
+      { id: "f02", type: "text", label: "회사명", placeholder: "회사명을 입력하세요", required: false, options: [] },
+      { id: "f03", type: "text", label: "이메일", placeholder: "email@example.com", required: true, options: [] },
+      { id: "f04", type: "select", label: "문의 유형", placeholder: "유형을 선택하세요", required: true, options: [{ label: "웹사이트", value: "웹사이트" }, { label: "앱", value: "앱" }, { label: "브랜딩", value: "브랜딩" }, { label: "기타", value: "기타" }] },
+      { id: "f05", type: "textarea", label: "문의 내용", placeholder: "문의 내용을 상세히 작성해주세요", required: true, options: [] },
+      { id: "f06", type: "file", label: "첨부파일", placeholder: "", required: false, options: [] },
+    ],
+  },
+  {
+    id: "form-02", name: "나라장터용", description: "공공기관 문의 전용 폼", status: "활성", created_at: "2025-02-20", updated_at: "2025-03-08",
+    fields: [
+      { id: "f11", type: "text", label: "기관명", placeholder: "기관명을 입력하세요", required: true, options: [] },
+      { id: "f12", type: "text", label: "담당자명", placeholder: "담당자명을 입력하세요", required: true, options: [] },
+      { id: "f13", type: "text", label: "연락처", placeholder: "000-0000-0000", required: true, options: [] },
+      { id: "f14", type: "text", label: "사업명", placeholder: "사업명을 입력하세요", required: true, options: [] },
+      { id: "f15", type: "select", label: "예산범위", placeholder: "예산을 선택하세요", required: false, options: [{ label: "1,000만원 미만", value: "under1000" }, { label: "1,000~3,000만원", value: "1000-3000" }, { label: "3,000~5,000만원", value: "3000-5000" }, { label: "5,000만원 이상", value: "over5000" }] },
+      { id: "f16", type: "textarea", label: "상세 요구사항", placeholder: "요구사항을 상세히 작성해주세요", required: true, options: [] },
+    ],
+  },
+  {
+    id: "form-03", name: "일반 문의용", description: "간단한 문의 폼", status: "비활성", created_at: "2025-01-10", updated_at: "2025-01-10",
+    fields: [
+      { id: "f21", type: "text", label: "이름", placeholder: "이름을 입력하세요", required: true, options: [] },
+      { id: "f22", type: "text", label: "연락처", placeholder: "000-0000-0000", required: true, options: [] },
+      { id: "f23", type: "textarea", label: "문의 내용", placeholder: "문의 내용을 입력하세요", required: true, options: [] },
+    ],
+  },
 ];
 
-// ── 의뢰 ──
+// ── 의뢰 (문의 + 의뢰 통합) ──
 export interface SalesRequest {
   id: string;
   title: string;
   client: string;
   contact_name: string;
+  contact_email: string;
+  contact_phone: string;
   type: "웹사이트" | "앱" | "브랜딩" | "디자인시스템" | "컨설팅" | "기타";
-  status: "접수" | "상담중" | "견적작성" | "견적발송" | "수주" | "실패";
+  source: "홈페이지" | "나라장터" | "소개" | "SNS" | "직접";
+  status: "신규" | "확인" | "상담" | "견적서" | "계약" | "수주" | "실패";
   budget: string;
   deadline: string;
   created_at: string;
@@ -37,11 +78,13 @@ export interface SalesRequest {
 }
 
 export const dummyRequests: SalesRequest[] = [
-  { id: "req-01", title: "ESG 보고서 시스템 구축", client: "그린에너지", contact_name: "정유진", type: "웹사이트", status: "상담중", budget: "5,000~7,000만원", deadline: "2025-06-30", created_at: "2025-03-11", memo: "공공기관 납품 경험 필요" },
-  { id: "req-02", title: "LMS 플랫폼 개발", client: "에듀플러스", contact_name: "오수빈", type: "웹사이트", status: "견적발송", budget: "2,000~3,000만원", deadline: "2025-08-31", created_at: "2025-03-05", memo: "수강생 관리 + 결제 기능" },
-  { id: "req-03", title: "핀테크 앱 UI/UX", client: "넥스트핀테크", contact_name: "김민재", type: "앱", status: "견적작성", budget: "3,000~4,000만원", deadline: "2025-07-31", created_at: "2025-03-09", memo: "iOS/Android 동시 진행" },
-  { id: "req-04", title: "스타트업허브 웹/앱 리뉴얼", client: "스타트업허브", contact_name: "이민수", type: "웹사이트", status: "수주", budget: "3,000만원", deadline: "2025-09-30", created_at: "2025-03-01", memo: "계약 완료, 4월 착수" },
-  { id: "req-05", title: "블루오션 CI 리뉴얼", client: "블루오션마케팅", contact_name: "한승우", type: "브랜딩", status: "접수", budget: "미정", deadline: "-", created_at: "2025-03-12", memo: "예산 협의 필요" },
+  { id: "req-01", title: "ESG 보고서 시스템 구축", client: "그린에너지", contact_name: "정유진", contact_email: "yj@green.kr", contact_phone: "031-7777-8888", type: "웹사이트", source: "나라장터", status: "견적서", budget: "5,000~7,000만원", deadline: "2025-06-30", created_at: "2025-03-11", memo: "공공기관 납품 경험 필요" },
+  { id: "req-02", title: "LMS 플랫폼 개발", client: "에듀플러스", contact_name: "오수빈", contact_email: "sb@edu.com", contact_phone: "02-1111-2222", type: "웹사이트", source: "소개", status: "계약", budget: "2,000~3,000만원", deadline: "2025-08-31", created_at: "2025-03-05", memo: "수강생 관리 + 결제 기능" },
+  { id: "req-03", title: "핀테크 앱 UI/UX", client: "넥스트핀테크", contact_name: "김민재", contact_email: "mj@nextfin.kr", contact_phone: "02-8888-9999", type: "앱", source: "SNS", status: "견적서", budget: "3,000~4,000만원", deadline: "2025-07-31", created_at: "2025-03-09", memo: "iOS/Android 동시 진행" },
+  { id: "req-04", title: "스타트업허브 웹/앱 리뉴얼", client: "스타트업허브", contact_name: "이민수", contact_email: "ms@starthub.kr", contact_phone: "02-5555-6666", type: "웹사이트", source: "직접", status: "수주", budget: "3,000만원", deadline: "2025-09-30", created_at: "2025-03-01", memo: "계약 완료, 4월 착수" },
+  { id: "req-05", title: "블루오션 CI 리뉴얼", client: "블루오션마케팅", contact_name: "한승우", contact_email: "sw@blue.kr", contact_phone: "02-3333-4444", type: "브랜딩", source: "홈페이지", status: "신규", budget: "미정", deadline: "-", created_at: "2025-03-12", memo: "CI 리뉴얼 견적 요청합니다" },
+  { id: "req-06", title: "건강관리 대시보드 컨설팅", client: "헬스케어랩", contact_name: "이서연", contact_email: "sy@hclab.kr", contact_phone: "010-5555-6666", type: "기타", source: "홈페이지", status: "신규", budget: "미정", deadline: "-", created_at: "2025-03-12", memo: "건강관리 대시보드 컨설팅 문의" },
+  { id: "req-07", title: "핀테크 앱 UI/UX 디자인", client: "넥스트핀테크", contact_name: "김민재", contact_email: "mj@nextfin.kr", contact_phone: "02-8888-9999", type: "앱", source: "SNS", status: "확인", budget: "미정", deadline: "-", created_at: "2025-03-08", memo: "핀테크 앱 UI/UX 디자인 의뢰" },
 ];
 
 // ── 고객 (기존 customers 데이터 이관) ──

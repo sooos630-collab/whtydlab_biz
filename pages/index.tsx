@@ -3,7 +3,7 @@ import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import s from "@/styles/Dashboard.module.css";
 import { useProjects } from "@/contexts/ProjectContext";
-import { dummyFixedCosts, dummySalaryRecords, dummyTaxInvoices } from "@/data/dummy-finance";
+import { dummyFixedCosts, dummyEmployeeSalaries, dummyTaxInvoices } from "@/data/dummy-finance";
 
 const DASHBOARD_YEAR = 2026;
 const MONTHS = Array.from({ length: 12 }, (_, index) => index + 1);
@@ -965,9 +965,9 @@ export default function DashboardPage() {
   );
 
   const monthlyPayrollBurn = useMemo(() => {
-    const latestMonth = [...new Set(dummySalaryRecords.map((record) => record.month))].sort().at(-1);
+    const latestMonth = [...new Set(dummyEmployeeSalaries.map((record) => record.month))].sort().at(-1);
     if (!latestMonth) return 0;
-    return dummySalaryRecords
+    return dummyEmployeeSalaries
       .filter((record) => record.month === latestMonth)
       .reduce((total, record) => total + record.net_salary, 0);
   }, []);
@@ -987,7 +987,7 @@ export default function DashboardPage() {
       });
 
     const plannedPayrollByMonth = new Map<number, number>();
-    dummySalaryRecords
+    dummyEmployeeSalaries
       .filter((record) => record.status !== "지급완료")
       .forEach((record) => {
         const month = extractMonth(record.pay_date) ?? extractMonth(`${record.month}-01`);

@@ -1,8 +1,9 @@
 import Head from "next/head";
-import { useState, useMemo, useCallback } from "react";
+import { useState, useMemo, useCallback, useEffect } from "react";
+import { useRouter } from "next/router";
 import s from "@/styles/Contracts.module.css";
+import { useQuotes } from "@/contexts/QuoteContext";
 import {
-  dummyQuotes,
   type Quote,
   type QuoteItem,
   type CostItem,
@@ -870,7 +871,8 @@ function QuoteEditorModal({ quote, onClose, onSave, guide }: { quote: Quote; onC
    메인 페이지
    ══════════════════════════════════════════════════════════ */
 export default function QuotesPage() {
-  const [list, setList] = useState<Quote[]>(() => dummyQuotes.map(deepCloneQuote));
+  const { quotes: list, updateQuote: ctxUpdateQuote, addQuote: ctxAddQuote, removeQuote: ctxRemoveQuote, restoreQuote: ctxRestoreQuote } = useQuotes();
+  const router = useRouter();
   const [trash, setTrash] = useState<Quote[]>([]);
   const [history, setHistory] = useState<HistoryEntry[]>(() => [...dummyHistory]);
   const [viewTab, setViewTab] = useState<ViewTab>("list");
@@ -921,31 +923,72 @@ export default function QuotesPage() {
 
   const addNewQuote = () => {
     const nq = emptyQuote();
-    setList((prev) => [nq, ...prev]);
+    ctxAddQuote(nq);
     addHistory(nq.id, nq.quote_number, "(신규)", "생성", "견적서 신규 생성");
     setEditId(nq.id);
     setViewTab("list");
     setFilter("all");
   };
 
+  // TODO: DB 연동 시 localStorage 대신 Supabase로 교체
+  // 의뢰 페이지에서 견적서 상태 전환 시 자동으로 견적서 생성
+  useEffect(() => {
+    try {
+      const pending = localStorage.getItem("whydlab_pending_quote");
+      if (pending) {
+        const data = JSON.parse(pending);
+        const nq = emptyQuote();
+        nq.client = data.client ?? "";
+        nq.receiver_company = data.receiver_company ?? data.client ?? "";
+        nq.contact_name = data.contact_name ?? "";
+        nq.title = data.title ?? "";
+        nq.quote_name = data.quote_name ?? "";
+        nq.receiver = { ...nq.receiver, company_name: data.receiver_company ?? data.client ?? "", representative: data.contact_name ?? "" };
+        ctxAddQuote(nq);
+        addHistory(nq.id, nq.quote_number, data.client ?? "(신규)", "생성", `의뢰에서 전환 — 견적서 자동 생성`);
+        setEditId(nq.id);
+        setViewTab("list");
+        setFilter("all");
+        localStorage.removeItem("whydlab_pending_quote");
+      }
+    } catch { /* ignore */ }
+  }, []);
+
   const saveQuote = (updated: Quote) => {
     const now = new Date().toISOString().replace("T", " ").slice(0, 16);
     const saved = { ...updated, updated_at: now, client: updated.receiver.company_name || updated.client, receiver_company: updated.receiver.company_name || updated.receiver_company };
-    setList((prev) => prev.map((q) => q.id === saved.id ? saved : q));
+    ctxUpdateQuote(saved);
     addHistory(saved.id, saved.quote_number, saved.quote_name || saved.title, "수정", "견적서 저장");
     setEditId(null);
   };
 
   const changeStatus = (id: string, newStatus: Quote["status"]) => {
-    setList((prev) => prev.map((qt) => {
-      if (qt.id !== id || qt.status === newStatus) return qt;
-      addHistory(qt.id, qt.quote_number, qt.quote_name || qt.title, "상태변경", `${qt.status} → ${newStatus}`);
-      return { ...qt, status: newStatus, updated_at: new Date().toISOString().replace("T", " ").slice(0, 16) };
-    }));
+    const qt = list.find((q) => q.id === id);
+    if (!qt || qt.status === newStatus) return;
+    const now = new Date().toISOString().replace("T", " ").slice(0, 16);
+    ctxUpdateQuote({ ...qt, status: newStatus, updated_at: now });
+    addHistory(qt.id, qt.quote_number, qt.quote_name || qt.title, "상태변경", `${qt.status} → ${newStatus}`);
+
+    // 수주 전환 시 → 계약서 작성 페이지로 이동
+    if (newStatus === "수주") {
+      const goContract = confirm(`"${qt.quote_name || qt.title}" 수주 완료!\n\n계약서 작성으로 이동하시겠습니까?`);
+      if (goContract) {
+        localStorage.setItem("whydlab_pending_contract", "1");
+        localStorage.setItem("whydlab_prefill_contract", JSON.stringify({
+          title: qt.title,
+          client: qt.receiver_company || qt.client,
+          quote_id: qt.id,
+          quote_number: qt.quote_number,
+          amount: qt.supply_amount,
+          contact_name: qt.contact_name,
+        }));
+        router.push("/contracts/overview");
+      }
+    }
   };
 
-  const moveToTrash = (id: string) => { const q = list.find((qt) => qt.id === id); if (!q || !confirm("견적서를 휴지통으로 이동하시겠습니까?")) return; setList((p) => p.filter((qt) => qt.id !== id)); setTrash((p) => [q, ...p]); addHistory(q.id, q.quote_number, q.quote_name, "삭제", "휴지통으로 이동"); };
-  const restoreFromTrash = (id: string) => { const q = trash.find((qt) => qt.id === id); if (!q) return; setTrash((p) => p.filter((qt) => qt.id !== id)); setList((p) => [q, ...p]); addHistory(q.id, q.quote_number, q.quote_name, "복원", "휴지통에서 복원"); };
+  const moveToTrash = (id: string) => { const q = list.find((qt) => qt.id === id); if (!q || !confirm("견적서를 휴지통으로 이동하시겠습니까?")) return; ctxRemoveQuote(id); setTrash((p) => [q, ...p]); addHistory(q.id, q.quote_number, q.quote_name, "삭제", "휴지통으로 이동"); };
+  const restoreFromTrash = (id: string) => { const q = trash.find((qt) => qt.id === id); if (!q) return; setTrash((p) => p.filter((qt) => qt.id !== id)); ctxRestoreQuote(q); addHistory(q.id, q.quote_number, q.quote_name, "복원", "휴지통에서 복원"); };
   const permanentDelete = (id: string) => { if (!confirm("영구 삭제하시겠습니까?")) return; setTrash((p) => p.filter((qt) => qt.id !== id)); };
   const emptyTrashAll = () => { if (!confirm(`${trash.length}건 영구 삭제합니까?`)) return; setTrash([]); };
 

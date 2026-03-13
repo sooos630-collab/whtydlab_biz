@@ -30,7 +30,7 @@ const catBadge = (cat: string) => {
 
 type StatusFilter = "all" | "진행" | "완료/탈락";
 
-export default function GovernmentPage() {
+export default function GovernmentManagePage() {
   const [list, setList] = useState<GovProject[]>(() =>
     dummyGovProjects.map((d) => ({ ...d }))
   );
@@ -60,11 +60,11 @@ export default function GovernmentPage() {
 
   return (
     <>
-      <Head><title>정부지원사업 - WHYDLAB BIZ</title></Head>
+      <Head><title>지원사업관리 - WHYDLAB BIZ</title></Head>
       <div className={s.page}>
         <div className={s.pageHeader}>
-          <h1>정부지원사업</h1>
-          <button className={`${s.btn} ${s.btnPrimary} ${s.btnSmall}`}>+ 사업등록</button>
+          <h1>지원사업관리</h1>
+          <button className={`${s.btn} ${s.btnSmall}`}>+ 사업등록</button>
         </div>
 
         <div className={s.summary}>

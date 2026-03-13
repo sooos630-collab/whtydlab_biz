@@ -1,293 +1,301 @@
 import Head from "next/head";
-import { useState, useMemo, useRef } from "react";
+import { useMemo, useState } from "react";
 import s from "@/styles/Contracts.module.css";
-import { dummyProjectPayments, type ProjectPayment } from "@/data/dummy-finance";
+import d from "@/styles/Dashboard.module.css";
+import fc from "@/styles/FixedCostDash.module.css";
+import p from "@/styles/PaymentsDash.module.css";
+import { useProjects } from "@/contexts/ProjectContext";
+import { dummyFixedCosts, dummyEmployeeSalaries } from "@/data/dummy-finance";
+import type { ProjectContract } from "@/data/dummy-contracts";
 
-const fmt = (n: number) => n.toLocaleString() + "원";
+const fmtNum = (n: number) => n.toLocaleString();
 const fmtMan = (n: number) => (n / 10000).toLocaleString() + "만원";
+const fmtWon = (n: number) => {
+  if (n >= 100000000) return `${(n / 100000000).toFixed(1)}억`;
+  if (n >= 10000) return `${(n / 10000).toFixed(0)}만`;
+  return n.toLocaleString();
+};
 
-type PayStatus = "입금완료" | "미입금" | "지연";
+const TODAY = new Date().toISOString().slice(0, 10);
 
-const payStatusBadge = (status: string) => {
+/* ── 입출금 행 통합 타입 ── */
+interface CashFlowRow {
+  id: string;
+  date: string;       // YYYY-MM-DD
+  type: "입금" | "출금";
+  category: string;    // 프로젝트수금 / 고정비 / 급여
+  description: string;
+  partner: string;
+  amount: number;
+  status: "완료" | "예정" | "지연";
+}
+
+function buildCashFlowRows(projects: ProjectContract[]): CashFlowRow[] {
+  const rows: CashFlowRow[] = [];
+
+  // 1) 프로젝트 수금 → 입금
+  for (const proj of projects) {
+    for (const phase of proj.payment_phases) {
+      const paid = phase.paid;
+      const isDelay = !paid && phase.due_date && phase.due_date < TODAY;
+      rows.push({
+        id: `proj-${proj.id}-${phase.label}`,
+        date: paid ? (phase.paid_date ?? phase.due_date) : phase.due_date,
+        type: "입금",
+        category: "프로젝트수금",
+        description: `${proj.project_name} - ${phase.label}`,
+        partner: proj.client,
+        amount: phase.amount,
+        status: paid ? "완료" : isDelay ? "지연" : "예정",
+      });
+    }
+  }
+
+  // 2) 고정비 → 출금 (이번달 + 다음달)
+  const now = new Date();
+  for (let offset = 0; offset <= 1; offset++) {
+    const d2 = new Date(now.getFullYear(), now.getMonth() + offset, 1);
+    const ym = `${d2.getFullYear()}-${String(d2.getMonth() + 1).padStart(2, "0")}`;
+    for (const cost of dummyFixedCosts) {
+      if (cost.status !== "활성") continue;
+      if (cost.billing_cycle === "월" || (cost.billing_cycle === "분기" && d2.getMonth() % 3 === 0) ||
+          (cost.billing_cycle === "반기" && d2.getMonth() % 6 === 0) || (cost.billing_cycle === "연" && d2.getMonth() === 2)) {
+        const day = cost.payment_date.match(/\d+/)?.[0] ?? "01";
+        const dateStr = `${ym}-${day.padStart(2, "0")}`;
+        rows.push({
+          id: `fixed-${cost.id}-${ym}`,
+          date: dateStr,
+          type: "출금",
+          category: "고정비",
+          description: cost.name,
+          partner: cost.category,
+          amount: cost.amount,
+          status: dateStr <= TODAY ? "완료" : "예정",
+        });
+      }
+    }
+  }
+
+  // 3) 급여 → 출금
+  for (const sal of dummyEmployeeSalaries) {
+    rows.push({
+      id: `sal-${sal.id}`,
+      date: sal.pay_date,
+      type: "출금",
+      category: "급여",
+      description: `${sal.name} (${sal.position})`,
+      partner: sal.type,
+      amount: sal.net_salary,
+      status: sal.status === "지급완료" ? "완료" : "예정",
+    });
+  }
+
+  return rows;
+}
+
+/* ── 월별 입출금 차트 ── */
+function CashFlowChart({ rows }: { rows: CashFlowRow[] }) {
+  const today = new Date();
+  const currentYear = today.getFullYear();
+  const [year, setYear] = useState(currentYear);
+
+  const months = Array.from({ length: 12 }, (_, i) =>
+    `${year}-${String(i + 1).padStart(2, "0")}`
+  );
+
+  const monthData = useMemo(() => {
+    return months.map((ym) => {
+      let income = 0;
+      let expense = 0;
+      for (const r of rows) {
+        if (r.date && r.date.slice(0, 7) === ym) {
+          if (r.type === "입금") income += r.amount;
+          else expense += r.amount;
+        }
+      }
+      return { month: ym, income, expense, net: income - expense };
+    });
+  }, [rows, months]);
+
+  const maxVal = Math.max(...monthData.map((m) => Math.max(m.income, m.expense)), 1);
+  const yearIncome = monthData.reduce((a, m) => a + m.income, 0);
+  const yearExpense = monthData.reduce((a, m) => a + m.expense, 0);
+
+  const years = useMemo(() => {
+    const set = new Set<number>();
+    set.add(currentYear);
+    for (const r of rows) {
+      if (r.date) set.add(Number(r.date.slice(0, 4)));
+    }
+    return [...set].filter((y) => y > 2000).sort();
+  }, [rows, currentYear]);
+
+  const W = 720, H = 220, padL = 60, padR = 16, padT = 8, padB = 28;
+  const chartW = W - padL - padR, chartH = H - padT - padB;
+  const barGroupW = chartW / 12;
+  const barW = barGroupW * 0.28;
+  const gridLines = [0, 0.25, 0.5, 0.75, 1];
+
+  return (
+    <div className={p.chartContainer}>
+      <div className={p.chartHeader}>
+        <div className={p.chartTitleRow}>
+          <span className={fc.chartTitle} style={{ marginBottom: 0 }}>월별 입출금 현황</span>
+          <div className={p.yearNav}>
+            <button className={p.yearBtn} onClick={() => setYear(year - 1)} disabled={!years.includes(year - 1)}>&lt;</button>
+            <span className={p.yearLabel}>{year}년</span>
+            <button className={p.yearBtn} onClick={() => setYear(year + 1)} disabled={!years.includes(year + 1)}>&gt;</button>
+          </div>
+        </div>
+        <div className={p.chartLegend}>
+          <span className={p.legendItem}><span className={p.legendDotCollected} /> 입금 {fmtWon(yearIncome)}원</span>
+          <span className={p.legendItem}><span className={p.legendDotExpense} /> 출금 {fmtWon(yearExpense)}원</span>
+          <span className={p.legendSep}>|</span>
+          <span className={p.legendTotal} style={{ color: yearIncome - yearExpense >= 0 ? "var(--color-success)" : "var(--color-danger)" }}>
+            순이익 {yearIncome - yearExpense >= 0 ? "+" : ""}{fmtWon(yearIncome - yearExpense)}원
+          </span>
+        </div>
+      </div>
+      <svg viewBox={`0 0 ${W} ${H}`} className={p.chartSvg}>
+        {gridLines.map((pct) => {
+          const y = padT + chartH * (1 - pct);
+          return (
+            <g key={pct}>
+              <line x1={padL} y1={y} x2={W - padR} y2={y} stroke="var(--color-border)" strokeWidth={0.5} strokeDasharray={pct > 0 ? "3,3" : "0"} />
+              {pct > 0 && <text x={padL - 6} y={y + 1} textAnchor="end" dominantBaseline="middle" className={p.axisLabel}>{fmtWon(maxVal * pct)}</text>}
+            </g>
+          );
+        })}
+        <line x1={padL} y1={padT + chartH} x2={W - padR} y2={padT + chartH} stroke="var(--color-border)" strokeWidth={1} />
+        {monthData.map((md, i) => {
+          const cx = padL + i * barGroupW + barGroupW / 2;
+          const incomeH = (md.income / maxVal) * chartH;
+          const expenseH = (md.expense / maxVal) * chartH;
+          const isCurrentMonth = md.month === today.toISOString().slice(0, 7);
+          return (
+            <g key={md.month}>
+              {/* 입금 바 (왼쪽) */}
+              {incomeH > 0 && <rect x={cx - barW - 1} y={padT + chartH - incomeH} width={barW} height={incomeH} rx={2} fill="#3182f6" opacity={0.85} />}
+              {/* 출금 바 (오른쪽) */}
+              {expenseH > 0 && <rect x={cx + 1} y={padT + chartH - expenseH} width={barW} height={expenseH} rx={2} fill="#f97316" opacity={0.7} />}
+              <text x={cx} y={padT + chartH + 16} textAnchor="middle" className={`${p.monthLabel} ${isCurrentMonth ? p.monthLabelCurrent : ""}`}>{md.month.slice(5)}월</text>
+            </g>
+          );
+        })}
+      </svg>
+    </div>
+  );
+}
+
+/* ══════════════════════════════════ */
+type TypeFilter = "all" | "입금" | "출금";
+type StatusFilter = "all" | "완료" | "예정" | "지연";
+
+const statusBadge = (status: string) => {
   switch (status) {
-    case "입금완료": return s.badgeGreen;
-    case "미입금": return s.badgeGray;
+    case "완료": return s.badgeGreen;
+    case "예정": return s.badgeGray;
     case "지연": return s.badgeRed;
     default: return s.badgeGray;
   }
 };
 
-/* 플랫 행 데이터 */
-interface PaymentRow {
-  id: string;
-  project_name: string;
-  client: string;
-  total_amount: number;
-  label: string;
-  amount: number;
-  due_date: string;
-  paid_date: string;
-  status: PayStatus;
-  memo: string;
-}
+const typeBadge = (type: string) => type === "입금" ? s.badgeBlue : s.badgeOrange;
 
-function flattenPayments(list: ProjectPayment[]): PaymentRow[] {
-  return list.flatMap((p) =>
-    p.payments.map((pm, i) => ({
-      id: `${p.id}-${i}`,
-      project_name: p.project_name,
-      client: p.client,
-      total_amount: p.total_amount,
-      label: pm.label,
-      amount: pm.amount,
-      due_date: pm.due_date,
-      paid_date: pm.paid_date ?? "",
-      status: pm.status,
-      memo: "",
-    }))
-  );
-}
-
-type StatusFilter = "all" | PayStatus;
-
-/* ── CSV Export (Excel) ── */
-function downloadCSV(rows: PaymentRow[]) {
-  const BOM = "\uFEFF";
-  const header = ["프로젝트명", "고객사", "총계약금액", "구분", "금액", "예정일", "입금일", "상태", "메모"];
-  const body = rows.map((r) => [
-    r.project_name, r.client, r.total_amount, r.label,
-    r.amount, r.due_date, r.paid_date, r.status, r.memo,
-  ]);
-  const csv = BOM + [header, ...body].map((row) => row.map((c) => `"${c}"`).join(",")).join("\n");
-  const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement("a");
-  a.href = url;
-  a.download = `프로젝트수금관리_${new Date().toISOString().slice(0, 10)}.csv`;
-  a.click();
-  URL.revokeObjectURL(url);
-}
-
-/* ── CSV Parse ── */
-function parseCSV(text: string): string[][] {
-  const lines = text.split(/\r?\n/).filter((l) => l.trim());
-  return lines.map((line) => {
-    const cols: string[] = [];
-    let cur = "";
-    let inQuote = false;
-    for (let i = 0; i < line.length; i++) {
-      const ch = line[i];
-      if (ch === '"') {
-        if (inQuote && line[i + 1] === '"') { cur += '"'; i++; }
-        else inQuote = !inQuote;
-      } else if (ch === "," && !inQuote) {
-        cols.push(cur.trim());
-        cur = "";
-      } else {
-        cur += ch;
-      }
-    }
-    cols.push(cur.trim());
-    return cols;
-  });
-}
-
-function csvToRows(parsed: string[][]): PaymentRow[] {
-  // 첫 행 = 헤더, 나머지 = 데이터
-  if (parsed.length < 2) return [];
-  const header = parsed[0].map((h) => h.replace(/^\uFEFF/, "").trim());
-
-  // 헤더 매핑 (유연하게)
-  const colMap: Record<string, number> = {};
-  const aliases: Record<string, string[]> = {
-    project_name: ["프로젝트명", "프로젝트", "project_name", "project"],
-    client: ["고객사", "거래처", "client"],
-    total_amount: ["총계약금액", "계약금액", "total_amount"],
-    label: ["구분", "회차", "label", "phase"],
-    amount: ["금액", "수금액", "amount"],
-    due_date: ["예정일", "수금예정일", "due_date"],
-    paid_date: ["입금일", "수금일", "paid_date"],
-    status: ["상태", "status"],
-    memo: ["메모", "비고", "memo", "note"],
-  };
-
-  for (const [key, names] of Object.entries(aliases)) {
-    const idx = header.findIndex((h) => names.some((n) => h.toLowerCase().includes(n.toLowerCase())));
-    if (idx >= 0) colMap[key] = idx;
-  }
-
-  const get = (row: string[], key: string) => {
-    const idx = colMap[key];
-    return idx !== undefined && idx < row.length ? row[idx] : "";
-  };
-
-  const parseStatus = (val: string): PayStatus => {
-    if (val.includes("완료") || val.includes("입금")) return "입금완료";
-    if (val.includes("지연")) return "지연";
-    return "미입금";
-  };
-
-  return parsed.slice(1).map((row, i) => ({
-    id: `csv-${Date.now()}-${i}`,
-    project_name: get(row, "project_name"),
-    client: get(row, "client"),
-    total_amount: Number(get(row, "total_amount").replace(/[^0-9.-]/g, "")) || 0,
-    label: get(row, "label") || `회차${i + 1}`,
-    amount: Number(get(row, "amount").replace(/[^0-9.-]/g, "")) || 0,
-    due_date: get(row, "due_date"),
-    paid_date: get(row, "paid_date"),
-    status: parseStatus(get(row, "status")),
-    memo: get(row, "memo"),
-  })).filter((r) => r.project_name || r.amount > 0);
-}
-
-/* ══════════════════════════════════ */
-export default function PaymentsPage() {
-  const [rows, setRows] = useState<PaymentRow[]>(() => flattenPayments(dummyProjectPayments));
-  const [filter, setFilter] = useState<StatusFilter>("all");
+export default function CashFlowPage() {
+  const { projects } = useProjects();
+  const allRows = useMemo(() => buildCashFlowRows(projects), [projects]);
+  const [typeFilter, setTypeFilter] = useState<TypeFilter>("all");
+  const [statusFilter, setStatusFilter] = useState<StatusFilter>("all");
   const [search, setSearch] = useState("");
-  const [editId, setEditId] = useState<string | null>(null);
-  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [showDash, setShowDash] = useState(true);
 
   const filtered = useMemo(() => {
-    let result = [...rows].sort((a, b) => {
-      // 빈 행(신규)은 항상 맨 위
-      const aNew = a.id.startsWith("new-") ? 1 : 0;
-      const bNew = b.id.startsWith("new-") ? 1 : 0;
-      if (aNew !== bNew) return bNew - aNew;
-      // 예정일 기준 최신순 (내림차순)
-      return (b.due_date || "").localeCompare(a.due_date || "");
-    });
-    if (filter !== "all") result = result.filter((r) => r.status === filter);
+    let result = [...allRows].sort((a, b) => (b.date || "").localeCompare(a.date || ""));
+    if (typeFilter !== "all") result = result.filter((r) => r.type === typeFilter);
+    if (statusFilter !== "all") result = result.filter((r) => r.status === statusFilter);
     if (search.trim()) {
       const q = search.trim().toLowerCase();
       result = result.filter((r) =>
-        r.project_name.toLowerCase().includes(q) ||
-        r.client.toLowerCase().includes(q) ||
-        r.label.toLowerCase().includes(q)
+        r.description.toLowerCase().includes(q) ||
+        r.partner.toLowerCase().includes(q) ||
+        r.category.toLowerCase().includes(q)
       );
     }
     return result;
-  }, [rows, filter, search]);
+  }, [allRows, typeFilter, statusFilter, search]);
 
-  const totalContract = useMemo(() => {
-    const seen = new Set<string>();
-    let sum = 0;
-    rows.forEach((r) => {
-      const key = `${r.project_name}-${r.client}`;
-      if (!seen.has(key)) { seen.add(key); sum += r.total_amount; }
-    });
-    return sum;
-  }, [rows]);
-  const totalPaid = rows.filter((r) => r.status === "입금완료").reduce((a, r) => a + r.amount, 0);
-  const totalUnpaid = rows.filter((r) => r.status !== "입금완료").reduce((a, r) => a + r.amount, 0);
-  const delayCount = rows.filter((r) => r.status === "지연").length;
-
-  /* 행 편집 */
-  const updateRow = (id: string, patch: Partial<PaymentRow>) => {
-    setRows((prev) => prev.map((r) => (r.id === id ? { ...r, ...patch } : r)));
-  };
-
-  const addRow = () => {
-    const newId = `new-${Date.now()}`;
-    setRows((prev) => [{
-      id: newId,
-      project_name: "", client: "", total_amount: 0,
-      label: "", amount: 0, due_date: "", paid_date: "", status: "미입금", memo: "",
-    }, ...prev]);
-    setEditId(newId);
-  };
-
-  const removeRow = (id: string) => {
-    if (!confirm("해당 행을 삭제하시겠습니까?")) return;
-    setRows((prev) => prev.filter((r) => r.id !== id));
-  };
-
-  /* CSV 업로드 */
-  const handleCSVUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-
-    const reader = new FileReader();
-    reader.onload = (ev) => {
-      const text = ev.target?.result as string;
-      if (!text) return;
-      const parsed = parseCSV(text);
-      const newRows = csvToRows(parsed);
-      if (newRows.length === 0) {
-        alert("유효한 데이터를 찾을 수 없습니다. CSV 형식을 확인해주세요.");
-        return;
-      }
-      const mode = confirm(
-        `${newRows.length}건의 데이터를 불러왔습니다.\n\n[확인] 기존 데이터에 추가\n[취소] 기존 데이터 대체`
-      );
-      if (mode) {
-        setRows((prev) => [...prev, ...newRows]);
-      } else {
-        setRows(newRows);
-      }
-    };
-    reader.readAsText(file, "UTF-8");
-    // input 초기화
-    e.target.value = "";
-  };
+  const totalIncome = allRows.filter((r) => r.type === "입금").reduce((a, r) => a + r.amount, 0);
+  const totalExpense = allRows.filter((r) => r.type === "출금").reduce((a, r) => a + r.amount, 0);
+  const completedIncome = allRows.filter((r) => r.type === "입금" && r.status === "완료").reduce((a, r) => a + r.amount, 0);
+  const completedExpense = allRows.filter((r) => r.type === "출금" && r.status === "완료").reduce((a, r) => a + r.amount, 0);
+  const delayCount = allRows.filter((r) => r.status === "지연").length;
 
   return (
     <>
-      <Head><title>프로젝트 수금 - WHYDLAB BIZ</title></Head>
+      <Head><title>입출금 현황 - WHYDLAB BIZ</title></Head>
       <div className={s.page} style={{ maxWidth: "100%" }}>
-        {/* 헤더 */}
         <div className={s.pageHeader}>
-          <h1>프로젝트 수금</h1>
-          <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
-            {/* CSV 업로드 */}
-            <input
-              ref={fileInputRef}
-              type="file"
-              accept=".csv,.txt"
-              style={{ display: "none" }}
-              onChange={handleCSVUpload}
-            />
-            <button className={`${s.btn} ${s.btnSmall}`} onClick={() => fileInputRef.current?.click()}>
-              CSV 업로드
-            </button>
-            <button className={`${s.btn} ${s.btnSmall}`} onClick={() => downloadCSV(rows)}>
-              Excel 다운로드
-            </button>
-            <div style={{ width: 1, height: 20, background: "var(--color-border)", margin: "0 2px" }} />
-            <button className={`${s.btn} ${s.btnSmall} ${s.btnPrimary}`} onClick={addRow}>
-              + 행 추가
-            </button>
-          </div>
+          <h1>입출금 현황</h1>
+          <span style={{ fontSize: 11, color: "var(--color-text-tertiary)" }}>프로젝트 수금 + 고정비 + 급여 통합</span>
         </div>
 
-        {/* 요약 */}
-        <div className={s.summary}>
-          <div className={s.summaryCard}>
-            <div className={s.summaryLabel}>총 계약금액</div>
-            <div className={s.summaryValue}>{fmtMan(totalContract)}</div>
-          </div>
-          <div className={s.summaryCard}>
-            <div className={s.summaryLabel}>수금 완료</div>
-            <div className={s.summaryValue} style={{ color: "var(--color-success)" }}>{fmtMan(totalPaid)}</div>
-          </div>
-          <div className={s.summaryCard}>
-            <div className={s.summaryLabel}>미수금</div>
-            <div className={s.summaryValue} style={{ color: "var(--color-primary)" }}>{fmtMan(totalUnpaid)}</div>
-          </div>
-          <div className={s.summaryCard}>
-            <div className={s.summaryLabel}>지연</div>
-            <div className={s.summaryValue} style={{ color: delayCount > 0 ? "var(--color-danger)" : undefined }}>{delayCount}건</div>
-          </div>
+        {/* 대시보드 */}
+        <div className={fc.dashToggle}>
+          <button className={fc.dashToggleBtn} onClick={() => setShowDash(!showDash)}>
+            {showDash ? "대시보드 접기 ▲" : "대시보드 펼치기 ▼"}
+          </button>
         </div>
 
-        {/* 필터 + 검색 */}
-        <div style={{ display: "flex", gap: 4, marginBottom: 10 }}>
-          {(["all", "입금완료", "미입금", "지연"] as const).map((f) => {
-            const cnt = f === "all" ? rows.length : rows.filter((r) => r.status === f).length;
+        {showDash && (
+          <div className={fc.dashSection}>
+            <div className={fc.statGrid}>
+              <div className={d.cashStatCard}>
+                <div className={d.cashStatLabel}>총 입금</div>
+                <div className={d.cashStatValue} style={{ color: "var(--color-primary)" }}>{fmtMan(totalIncome)}</div>
+                <div className={d.cashStatMeta}>실입금 {fmtMan(completedIncome)}</div>
+              </div>
+              <div className={d.cashStatCard}>
+                <div className={d.cashStatLabel}>총 출금</div>
+                <div className={d.cashStatValue} style={{ color: "#f97316" }}>{fmtMan(totalExpense)}</div>
+                <div className={d.cashStatMeta}>실출금 {fmtMan(completedExpense)}</div>
+              </div>
+              <div className={d.cashStatCard}>
+                <div className={d.cashStatLabel}>순이익</div>
+                <div className={d.cashStatValue} style={{ color: totalIncome - totalExpense >= 0 ? "var(--color-success)" : "var(--color-danger)" }}>
+                  {totalIncome - totalExpense >= 0 ? "+" : ""}{fmtMan(totalIncome - totalExpense)}
+                </div>
+                <div className={d.cashStatMeta}>입금 - 출금</div>
+              </div>
+              <div className={d.cashStatCard}>
+                <div className={d.cashStatLabel}>지연</div>
+                <div className={d.cashStatValue} style={{ color: delayCount > 0 ? "var(--color-danger)" : "var(--color-text-tertiary)" }}>{delayCount}건</div>
+                <div className={d.cashStatMeta}>{delayCount > 0 ? `${fmtMan(allRows.filter((r) => r.status === "지연").reduce((a, r) => a + r.amount, 0))}` : "없음"}</div>
+              </div>
+            </div>
+            <div className={d.chartPanel}>
+              <CashFlowChart rows={allRows} />
+            </div>
+          </div>
+        )}
+
+        {/* 필터 */}
+        <div style={{ display: "flex", gap: 4, marginBottom: 6, flexWrap: "wrap" }}>
+          {(["all", "입금", "출금"] as const).map((f) => {
+            const cnt = f === "all" ? allRows.length : allRows.filter((r) => r.type === f).length;
             return (
-              <button key={f} className={`${s.btn} ${s.btnSmall} ${filter === f ? s.btnPrimary : ""}`} onClick={() => setFilter(f)}>
+              <button key={f} className={`${s.btn} ${s.btnSmall} ${typeFilter === f ? s.btnPrimary : ""}`} onClick={() => setTypeFilter(f)}>
                 {f === "all" ? "전체" : f}
+                <span style={{ marginLeft: 3, fontSize: 11, opacity: 0.7 }}>{cnt}</span>
+              </button>
+            );
+          })}
+          <div style={{ width: 1, height: 24, background: "var(--color-border)", margin: "0 4px" }} />
+          {(["all", "완료", "예정", "지연"] as const).map((f) => {
+            const cnt = f === "all" ? allRows.length : allRows.filter((r) => r.status === f).length;
+            return (
+              <button key={f} className={`${s.btn} ${s.btnSmall} ${statusFilter === f ? s.btnPrimary : ""}`} onClick={() => setStatusFilter(f)}>
+                {f === "all" ? "전체상태" : f}
                 <span style={{ marginLeft: 3, fontSize: 11, opacity: 0.7 }}>{cnt}</span>
               </button>
             );
@@ -297,130 +305,49 @@ export default function PaymentsPage() {
         <div className={s.toolbar}>
           <div className={s.toolbarSearch}>
             <span className={s.toolbarSearchIcon}>🔍</span>
-            <input className={s.toolbarSearchInput} placeholder="프로젝트명, 고객사, 구분 검색..." value={search} onChange={(e) => setSearch(e.target.value)} />
+            <input className={s.toolbarSearchInput} placeholder="내역, 거래처, 분류 검색..." value={search} onChange={(e) => setSearch(e.target.value)} />
           </div>
-          <span style={{ fontSize: 12, color: "var(--color-text-tertiary)", whiteSpace: "nowrap" }}>
-            {filtered.length}건
-          </span>
+          <span style={{ fontSize: 12, color: "var(--color-text-tertiary)", whiteSpace: "nowrap" }}>{filtered.length}건</span>
         </div>
 
         {/* 테이블 */}
         <div className={s.section} style={{ overflowX: "auto", padding: 0 }}>
-          <table className={s.table} style={{ minWidth: 1000 }}>
+          <table className={s.table} style={{ minWidth: 800 }}>
             <thead>
               <tr>
-                <th style={{ paddingLeft: 20 }}>프로젝트명</th>
-                <th>고객사</th>
-                <th style={{ textAlign: "right" }}>총계약금액</th>
+                <th style={{ paddingLeft: 20 }}>날짜</th>
                 <th>구분</th>
+                <th>분류</th>
+                <th>내역</th>
+                <th>거래처</th>
                 <th style={{ textAlign: "right" }}>금액</th>
-                <th>예정일</th>
-                <th>입금일</th>
                 <th>상태</th>
-                <th>메모</th>
-                <th style={{ width: 60 }}></th>
               </tr>
             </thead>
             <tbody>
-              {filtered.map((r) => {
-                const isEditing = editId === r.id;
-                return (
-                  <tr key={r.id} onDoubleClick={() => setEditId(r.id)} style={{ background: isEditing ? "var(--color-primary-light)" : undefined }}>
-                    <td style={{ paddingLeft: 20 }}>
-                      {isEditing ? (
-                        <input className={s.formInput} value={r.project_name} onChange={(e) => updateRow(r.id, { project_name: e.target.value })} style={{ padding: "4px 8px", fontSize: 13, fontWeight: 600 }} />
-                      ) : (
-                        <span style={{ fontWeight: 600 }}>{r.project_name || <span style={{ color: "var(--color-text-tertiary)" }}>-</span>}</span>
-                      )}
-                    </td>
-                    <td>
-                      {isEditing ? (
-                        <input className={s.formInput} value={r.client} onChange={(e) => updateRow(r.id, { client: e.target.value })} style={{ padding: "4px 8px", fontSize: 13 }} />
-                      ) : (
-                        r.client || <span style={{ color: "var(--color-text-tertiary)" }}>-</span>
-                      )}
-                    </td>
-                    <td style={{ textAlign: "right" }}>
-                      {isEditing ? (
-                        <input className={s.formInput} type="number" value={r.total_amount || ""} onChange={(e) => updateRow(r.id, { total_amount: Number(e.target.value) })} style={{ padding: "4px 8px", fontSize: 13, textAlign: "right", width: 120 }} />
-                      ) : (
-                        <span style={{ fontWeight: 700, whiteSpace: "nowrap" }}>{r.total_amount > 0 ? fmtMan(r.total_amount) : "-"}</span>
-                      )}
-                    </td>
-                    <td>
-                      {isEditing ? (
-                        <input className={s.formInput} value={r.label} onChange={(e) => updateRow(r.id, { label: e.target.value })} style={{ padding: "4px 8px", fontSize: 13, width: 100 }} />
-                      ) : (
-                        r.label
-                      )}
-                    </td>
-                    <td style={{ textAlign: "right" }}>
-                      {isEditing ? (
-                        <input className={s.formInput} type="number" value={r.amount || ""} onChange={(e) => updateRow(r.id, { amount: Number(e.target.value) })} style={{ padding: "4px 8px", fontSize: 13, textAlign: "right", width: 120 }} />
-                      ) : (
-                        <span style={{ fontWeight: 700, whiteSpace: "nowrap", color: r.status === "입금완료" ? "var(--color-success)" : undefined }}>
-                          {r.amount > 0 ? fmt(r.amount) : "-"}
-                        </span>
-                      )}
-                    </td>
-                    <td>
-                      {isEditing ? (
-                        <input className={s.formInput} type="date" value={r.due_date} onChange={(e) => updateRow(r.id, { due_date: e.target.value })} style={{ padding: "4px 8px", fontSize: 12 }} />
-                      ) : (
-                        <span style={{ whiteSpace: "nowrap" }}>{r.due_date || "-"}</span>
-                      )}
-                    </td>
-                    <td>
-                      {isEditing ? (
-                        <input className={s.formInput} type="date" value={r.paid_date} onChange={(e) => updateRow(r.id, { paid_date: e.target.value })} style={{ padding: "4px 8px", fontSize: 12 }} />
-                      ) : (
-                        <span style={{ whiteSpace: "nowrap" }}>{r.paid_date || <span style={{ color: "var(--color-text-tertiary)" }}>-</span>}</span>
-                      )}
-                    </td>
-                    <td>
-                      {isEditing ? (
-                        <select className={s.formSelect} value={r.status} onChange={(e) => updateRow(r.id, { status: e.target.value as PayStatus })} style={{ padding: "4px 8px", fontSize: 12, width: 100 }}>
-                          <option value="입금완료">입금완료</option>
-                          <option value="미입금">미입금</option>
-                          <option value="지연">지연</option>
-                        </select>
-                      ) : (
-                        <span className={`${s.badge} ${payStatusBadge(r.status)}`}>{r.status}</span>
-                      )}
-                    </td>
-                    <td>
-                      {isEditing ? (
-                        <input className={s.formInput} value={r.memo} onChange={(e) => updateRow(r.id, { memo: e.target.value })} placeholder="메모" style={{ padding: "4px 8px", fontSize: 12 }} />
-                      ) : (
-                        <span style={{ fontSize: 12, color: "var(--color-text-secondary)" }}>{r.memo || ""}</span>
-                      )}
-                    </td>
-                    <td>
-                      <div style={{ display: "flex", gap: 2 }}>
-                        {isEditing ? (
-                          <button className={s.btnIcon} title="완료" onClick={() => setEditId(null)} style={{ fontSize: 13, color: "var(--color-primary)" }}>✓</button>
-                        ) : (
-                          <button className={s.btnIcon} title="편집" onClick={() => setEditId(r.id)} style={{ fontSize: 12 }}>✏️</button>
-                        )}
-                        <button className={s.btnIcon} title="삭제" onClick={() => removeRow(r.id)} style={{ fontSize: 12 }}>🗑</button>
-                      </div>
-                    </td>
-                  </tr>
-                );
-              })}
+              {filtered.map((r) => (
+                <tr key={r.id}>
+                  <td style={{ paddingLeft: 20, whiteSpace: "nowrap" }}>{r.date || "-"}</td>
+                  <td><span className={`${s.badge} ${typeBadge(r.type)}`}>{r.type}</span></td>
+                  <td><span style={{ fontSize: 12, color: "var(--color-text-secondary)" }}>{r.category}</span></td>
+                  <td style={{ fontWeight: 600 }}>{r.description}</td>
+                  <td>{r.partner}</td>
+                  <td style={{ textAlign: "right", fontWeight: 700, whiteSpace: "nowrap", color: r.type === "입금" ? "var(--color-primary)" : "#f97316" }}>
+                    {r.type === "입금" ? "+" : "-"}{fmtNum(r.amount)}원
+                  </td>
+                  <td><span className={`${s.badge} ${statusBadge(r.status)}`}>{r.status}</span></td>
+                </tr>
+              ))}
               {filtered.length === 0 && (
-                <tr><td colSpan={10} className={s.empty}>데이터가 없습니다</td></tr>
+                <tr><td colSpan={7} className={s.empty}>데이터가 없습니다</td></tr>
               )}
             </tbody>
           </table>
         </div>
 
-        {/* 안내 */}
         <div style={{ marginTop: 12, padding: "12px 16px", background: "var(--color-bg)", borderRadius: "var(--radius-sm)", fontSize: 12, color: "var(--color-text-tertiary)", lineHeight: 1.7 }}>
-          <strong style={{ color: "var(--color-text-secondary)" }}>사용 가이드</strong><br />
-          행을 <strong>더블클릭</strong>하면 인라인 편집 모드로 전환됩니다.<br />
-          <strong>CSV 업로드</strong> 시 헤더(프로젝트명, 고객사, 총계약금액, 구분, 금액, 예정일, 입금일, 상태, 메모)를 포함한 CSV 파일을 선택하세요.<br />
-          <strong>Excel 다운로드</strong>는 현재 테이블 데이터를 CSV(UTF-8 BOM)로 내보냅니다. Excel에서 바로 열 수 있습니다.
+          <strong style={{ color: "var(--color-text-secondary)" }}>데이터 출처</strong><br />
+          <strong>입금</strong>: 계약관리 &gt; 프로젝트 관리의 수금 데이터 | <strong>출금</strong>: 정기결제(고정비) + 월 급여관리
         </div>
       </div>
     </>

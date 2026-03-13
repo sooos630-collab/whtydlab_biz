@@ -66,13 +66,22 @@ const navItems: NavSection[] = [
         label: "자금관리",
         icon: "💰",
         sub: [
+          { href: "/finance/closing", label: "월말결산" },
           { href: "/finance/fixed", label: "정기결제(고정비)" },
-          { href: "/finance/payments", label: "프로젝트 수금" },
-          { href: "/finance/salary", label: "월 급여관리" },
+          { href: "/finance/payments", label: "입출금 현황" },
+          { href: "/finance/salary", label: "인건비 관리" },
           { href: "/finance/tax", label: "세금계산서" },
         ],
       },
-      { href: "/government", label: "정부지원사업", icon: "🏛️" },
+      {
+        href: "/government",
+        label: "정부지원사업",
+        icon: "🏛️",
+        sub: [
+          { href: "/government/manage", label: "지원사업관리" },
+          { href: "/government/proposal", label: "사업계획서작성" },
+        ],
+      },
       { href: "/accounts", label: "계정관리", icon: "🔐" },
     ],
   },
@@ -91,6 +100,9 @@ export default function Layout({ children }: { children: React.ReactNode }) {
     ...s.items,
     ...s.items.flatMap((i) => i.sub ?? []),
   ]);
+
+  const fullBleedPages = ["/contracts/projects"];
+  const isFullBleed = fullBleedPages.includes(currentPath);
 
   return (
     <div className={styles.wrapper}>
@@ -168,7 +180,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
             <div className={styles.profileBadge}>W</div>
           </div>
         </header>
-        <main className={styles.content}>{children}</main>
+        <main className={isFullBleed ? styles.contentFullBleed : styles.content}>{children}</main>
       </div>
     </div>
   );

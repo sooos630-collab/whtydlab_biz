@@ -9,6 +9,8 @@
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.99.1",
+    "@types/formidable": "^3.5.0",
+    "formidable": "^3.5.4",
     "next": "16.1.6",
     "react": "19.2.3",
     "react-dom": "19.2.3"

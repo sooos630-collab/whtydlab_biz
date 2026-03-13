@@ -6,7 +6,7 @@ export interface ContractFile {
   contract_id: string;
   contract_type: "hr" | "outsource" | "project";
   file_name: string;
-  file_type: "계약서" | "견적서" | "발주서" | "변경계약서" | "검수확인서" | "NDA" | "기타";
+  file_type: "계약서" | "견적서" | "발주서" | "변경계약서" | "검수확인서" | "NDA" | "신분증" | "통장사본" | "기타";
   file_size: number; // bytes
   uploaded_at: string;
 }
@@ -33,12 +33,15 @@ export const dummyContractFiles: ContractFile[] = [
 export interface HrContract {
   id: string;
   name: string;
+  gender: "남" | "여";
+  birth_date: string;
+  address: string;
   position: string;
   type: "정규직" | "계약직" | "파트타임" | "인턴";
   start_date: string;
   end_date: string | null;
   status: "재직" | "퇴직" | "휴직";
-  salary: string;
+  salary: string;           // 정규직: 연봉, 계약직: 월급여
   docs: { name: string; uploaded: boolean }[];
 }
 
@@ -46,6 +49,9 @@ export const dummyHrContracts: HrContract[] = [
   {
     id: "hr-1",
     name: "송유섭",
+    gender: "남",
+    birth_date: "1990-06-30",
+    address: "경기도 화성시 동탄대로 123",
     position: "대표",
     type: "정규직",
     start_date: "2024-03-25",
@@ -60,12 +66,15 @@ export const dummyHrContracts: HrContract[] = [
   {
     id: "hr-2",
     name: "김팀장",
+    gender: "남",
+    birth_date: "1992-03-15",
+    address: "서울시 강남구 테헤란로 456",
     position: "팀장",
     type: "정규직",
     start_date: "2024-06-01",
     end_date: null,
     status: "재직",
-    salary: "협의",
+    salary: "4,200만원",
     docs: [
       { name: "근로계약서", uploaded: true },
       { name: "월임금명세서", uploaded: true },

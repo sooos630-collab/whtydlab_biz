@@ -1,0 +1,464 @@
+/* ── 폼 빌더 레이아웃 ── */
+.builderLayout {
+  display: grid;
+  grid-template-columns: 1fr 1.4fr;
+  gap: 16px;
+  min-height: 480px;
+}
+
+.builderListPanel,
+.builderEditorPanel {
+  background: var(--color-white);
+  border: 1px solid var(--color-border);
+  border-radius: 14px;
+  padding: 20px;
+  overflow: auto;
+}
+
+.builderEditorPanel {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.editorHeader {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.editorRow {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+}
+
+.editorInput {
+  flex: 1;
+  padding: 8px 12px;
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+  font-size: 13px;
+  font-family: inherit;
+  outline: none;
+  transition: border-color var(--transition);
+}
+
+.editorInput:focus {
+  border-color: var(--color-primary);
+}
+
+.editorInputTitle {
+  font-size: 15px;
+  font-weight: 700;
+}
+
+/* ── 필드 팔레트 ── */
+.paletteLabel {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--color-text-secondary);
+  margin-bottom: 8px;
+}
+
+.palette {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-bottom: 12px;
+}
+
+.paletteItem {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 6px 12px;
+  border: 1px dashed var(--color-border);
+  border-radius: 8px;
+  background: var(--color-bg);
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--color-text-secondary);
+  cursor: grab;
+  user-select: none;
+  transition: border-color var(--transition), background var(--transition);
+}
+
+.paletteItem:hover {
+  border-color: var(--color-primary);
+  background: rgba(49, 130, 246, 0.04);
+  color: var(--color-primary);
+}
+
+.paletteItem:active {
+  cursor: grabbing;
+}
+
+/* ── 드롭존 ── */
+.dropZone {
+  flex: 1;
+  min-height: 200px;
+  border: 2px dashed var(--color-border);
+  border-radius: 12px;
+  padding: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  transition: border-color var(--transition), background var(--transition);
+}
+
+.dropZoneActive {
+  border-color: var(--color-primary);
+  background: rgba(49, 130, 246, 0.03);
+}
+
+.dropZoneEmpty {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--color-text-tertiary);
+  font-size: 13px;
+}
+
+/* ── 필드 카드 ── */
+.fieldCard {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  padding: 10px 12px;
+  border: 1px solid var(--color-border);
+  border-radius: 10px;
+  background: var(--color-white);
+  cursor: grab;
+  transition: box-shadow var(--transition), border-color var(--transition);
+}
+
+.fieldCard:hover {
+  border-color: var(--color-primary);
+  box-shadow: 0 2px 8px rgba(49, 130, 246, 0.08);
+}
+
+.fieldCardDragging {
+  opacity: 0.4;
+}
+
+.fieldCardOver {
+  border-color: var(--color-primary);
+  border-style: dashed;
+}
+
+.dragHandle {
+  cursor: grab;
+  color: var(--color-text-tertiary);
+  font-size: 14px;
+  padding: 2px 0;
+  flex-shrink: 0;
+  user-select: none;
+}
+
+.fieldCardBody {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+
+.fieldCardTop {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.fieldTypeChip {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 8px;
+  border-radius: 999px;
+  font-size: 10px;
+  font-weight: 700;
+  background: rgba(49, 130, 246, 0.08);
+  color: var(--color-primary);
+  white-space: nowrap;
+}
+
+.fieldLabelInput {
+  flex: 1;
+  padding: 4px 8px;
+  border: 1px solid transparent;
+  border-radius: 6px;
+  font-size: 13px;
+  font-weight: 600;
+  font-family: inherit;
+  outline: none;
+  min-width: 0;
+  transition: border-color var(--transition);
+}
+
+.fieldLabelInput:focus {
+  border-color: var(--color-primary);
+}
+
+.fieldPlaceholderInput {
+  padding: 3px 8px;
+  border: 1px solid transparent;
+  border-radius: 6px;
+  font-size: 11.5px;
+  color: var(--color-text-secondary);
+  font-family: inherit;
+  outline: none;
+  transition: border-color var(--transition);
+}
+
+.fieldPlaceholderInput:focus {
+  border-color: var(--color-border);
+}
+
+.fieldCardActions {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  flex-shrink: 0;
+}
+
+.requiredToggle {
+  padding: 2px 8px;
+  border: 1px solid var(--color-border);
+  border-radius: 6px;
+  font-size: 10px;
+  font-weight: 700;
+  cursor: pointer;
+  background: var(--color-white);
+  color: var(--color-text-tertiary);
+  transition: all var(--transition);
+}
+
+.requiredToggleOn {
+  border-color: rgba(239, 68, 68, 0.3);
+  background: rgba(239, 68, 68, 0.06);
+  color: #ef4444;
+}
+
+/* ── 옵션 에디터 (select/checkbox) ── */
+.optionsEditor {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  padding: 4px 8px;
+}
+
+.optionChip {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  padding: 2px 8px;
+  border: 1px solid var(--color-border);
+  border-radius: 6px;
+  font-size: 11px;
+  background: var(--color-bg);
+}
+
+.optionChipRemove {
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: var(--color-text-tertiary);
+  font-size: 12px;
+  padding: 0;
+  line-height: 1;
+}
+
+.optionChipRemove:hover {
+  color: #ef4444;
+}
+
+.addOptionBtn {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 8px;
+  border: 1px dashed var(--color-border);
+  border-radius: 6px;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--color-text-tertiary);
+  background: none;
+  cursor: pointer;
+}
+
+.addOptionBtn:hover {
+  border-color: var(--color-primary);
+  color: var(--color-primary);
+}
+
+/* ── 미리보기 모달 ── */
+.previewOverlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(15, 23, 42, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+}
+
+.previewModal {
+  background: var(--color-white);
+  border-radius: 18px;
+  padding: 32px;
+  width: min(560px, 90vw);
+  max-height: 80vh;
+  overflow-y: auto;
+  box-shadow: 0 16px 48px rgba(15, 23, 42, 0.15);
+}
+
+.previewTitle {
+  font-size: 18px;
+  font-weight: 800;
+  margin-bottom: 6px;
+}
+
+.previewDesc {
+  font-size: 13px;
+  color: var(--color-text-secondary);
+  margin-bottom: 20px;
+}
+
+.previewField {
+  margin-bottom: 14px;
+}
+
+.previewFieldLabel {
+  font-size: 13px;
+  font-weight: 600;
+  margin-bottom: 5px;
+  color: var(--color-text);
+}
+
+.previewFieldRequired {
+  color: #ef4444;
+  margin-left: 3px;
+}
+
+.previewInput {
+  width: 100%;
+  padding: 9px 12px;
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+  font-size: 13px;
+  font-family: inherit;
+  background: var(--color-bg);
+  color: var(--color-text-tertiary);
+}
+
+.previewTextarea {
+  width: 100%;
+  padding: 9px 12px;
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+  font-size: 13px;
+  font-family: inherit;
+  background: var(--color-bg);
+  color: var(--color-text-tertiary);
+  min-height: 80px;
+  resize: vertical;
+}
+
+.previewSelect {
+  width: 100%;
+  padding: 9px 12px;
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+  font-size: 13px;
+  font-family: inherit;
+  background: var(--color-bg);
+  color: var(--color-text-tertiary);
+}
+
+.previewCheckGroup {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+.previewCheckItem {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+  color: var(--color-text);
+}
+
+/* ── 서브탭 (고객 페이지) ── */
+.subTabBar {
+  display: flex;
+  gap: 0;
+  border-bottom: 1px solid var(--color-border);
+  margin-bottom: 16px;
+}
+
+.subTab {
+  padding: 10px 20px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--color-text-secondary);
+  background: none;
+  border: none;
+  border-bottom: 2px solid transparent;
+  cursor: pointer;
+  transition: color var(--transition), border-color var(--transition);
+}
+
+.subTab:hover {
+  color: var(--color-text);
+}
+
+.subTabActive {
+  color: var(--color-primary);
+  border-bottom-color: var(--color-primary);
+}
+
+/* ── 템플릿 편집 모달 ── */
+.templateModal {
+  background: var(--color-white);
+  border-radius: 18px;
+  padding: 28px;
+  width: min(640px, 90vw);
+  max-height: 80vh;
+  overflow-y: auto;
+  box-shadow: 0 16px 48px rgba(15, 23, 42, 0.15);
+}
+
+.templateField {
+  margin-bottom: 14px;
+}
+
+.templateFieldLabel {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--color-text-secondary);
+  margin-bottom: 5px;
+}
+
+.templateTextarea {
+  width: 100%;
+  padding: 10px 12px;
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+  font-size: 13px;
+  font-family: inherit;
+  min-height: 200px;
+  resize: vertical;
+  outline: none;
+  transition: border-color var(--transition);
+}
+
+.templateTextarea:focus {
+  border-color: var(--color-primary);
+}
+
+/* ── 반응형 ── */
+@media (max-width: 900px) {
+  .builderLayout {
+    grid-template-columns: 1fr;
+  }
+}

@@ -243,13 +243,22 @@ function ensurePaymentPhases(project: ProjectContract, previous?: ProjectContrac
 
 export function recalculateProjectContract(project: ProjectContract, previous?: ProjectContract | null): ProjectContract {
   const next = cloneProjectContract(project);
+
+  // 총금액 = 공급가액 + 부가세
   const total_amount_num =
     next.supply_amount > 0 || next.vat_amount > 0 ? next.supply_amount + next.vat_amount : next.total_amount_num;
+
+  // 수금 합계
   const collected_amount = next.collected_initial + next.collected_interim + next.collected_final;
   const remaining_amount = total_amount_num - collected_amount;
   const collection_rate = total_amount_num > 0 ? Math.round((collected_amount / total_amount_num) * 100) : 0;
+
+  // 순이익 = 수금액 - 투입원가
   const net_profit = collected_amount - next.input_cost;
-  const net_profit_rate = collected_amount > 0 ? Math.round((net_profit / collected_amount) * 100) : 0;
+
+  // 이익률 = 순이익 / 총 계약금액 × 100 (계약 기준)
+  const net_profit_rate = total_amount_num > 0 ? Math.round((net_profit / total_amount_num) * 1000) / 10 : 0;
+
   const progress = next.progress > 0 || next.status === "제안" ? next.progress : defaultProgressByStatus(next.status);
 
   return {
@@ -265,6 +274,7 @@ export function recalculateProjectContract(project: ProjectContract, previous?: 
     total_amount: formatManwonText(total_amount_num),
     paid_amount: formatManwonText(collected_amount),
     payment_phases: ensurePaymentPhases({ ...next, total_amount_num }, previous),
+    // 중복 필드 동기화
     total_settled: collected_amount,
     total_expense: next.input_cost,
     profit_rate: net_profit_rate,

@@ -1,0 +1,150 @@
+/* ── 대시보드 토글 ── */
+.dashToggle {
+  display: flex;
+  justify-content: flex-end;
+  margin-bottom: -4px;
+}
+
+.dashToggleBtn {
+  padding: 4px 12px;
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+  background: var(--color-white);
+  color: var(--color-text-secondary);
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: border-color var(--transition), color var(--transition);
+}
+
+.dashToggleBtn:hover {
+  border-color: #cfd7df;
+  color: var(--color-text);
+}
+
+/* ── 대시보드 섹션 ── */
+.dashSection {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  margin-bottom: 8px;
+}
+
+/* ── 요약 카드 그리드 ── */
+.statGrid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 14px;
+}
+
+/* ── 차트 그리드 ── */
+.chartGrid {
+  display: grid;
+  grid-template-columns: 1.2fr 0.8fr;
+  gap: 14px;
+}
+
+.chartTitle {
+  font-size: 14px;
+  font-weight: 800;
+  color: var(--color-text);
+  margin-bottom: 16px;
+}
+
+/* ── 분류별 바 차트 ── */
+.chartSvg {
+  width: 100%;
+  display: block;
+}
+
+.barLabel {
+  fill: var(--color-text-secondary);
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.barValue {
+  fill: var(--color-text);
+  font-size: 11px;
+  font-weight: 700;
+}
+
+/* ── 도넛 차트 ── */
+.donutWrap {
+  display: flex;
+  align-items: center;
+  gap: 24px;
+  padding: 8px 0;
+}
+
+.donutSvg {
+  width: 112px;
+  height: 112px;
+  flex-shrink: 0;
+}
+
+.donutCenter {
+  fill: var(--color-text);
+  font-size: 20px;
+  font-weight: 800;
+}
+
+.donutCenterSub {
+  fill: var(--color-text-secondary);
+  font-size: 10px;
+  font-weight: 600;
+}
+
+.donutLegend {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.legendRow {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.legendDot {
+  width: 10px;
+  height: 10px;
+  border-radius: 999px;
+  flex-shrink: 0;
+}
+
+.legendLabel {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--color-text);
+  min-width: 28px;
+}
+
+.legendCount {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--color-text-secondary);
+}
+
+/* ── 반응형 ── */
+@media (max-width: 1120px) {
+  .statGrid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .chartGrid {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 560px) {
+  .statGrid {
+    grid-template-columns: 1fr;
+  }
+
+  .donutWrap {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+}

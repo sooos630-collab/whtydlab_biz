@@ -1,5 +1,5 @@
 import Head from "next/head";
-import { useState, useMemo, useCallback } from "react";
+import { useState, useMemo, useCallback, useEffect } from "react";
 import Link from "next/link";
 import s from "@/styles/Contracts.module.css";
 import k from "@/styles/Kanban.module.css";
@@ -227,7 +227,27 @@ function createDefaultTerms(): ContractTerms {
 /* ── 계약서 작성 모달 (Split-pane) ── */
 function ContractFormModal({ onClose, onSave }: { onClose: () => void; onSave: (form: ContractForm, contractNumber: string) => void }) {
   const [contractNumber] = useState(generateContractNumber);
-  const [form, setForm] = useState<ContractForm>(createDefaultForm);
+  const [form, setForm] = useState<ContractForm>(() => {
+    const base = createDefaultForm();
+    // 의뢰에서 전환된 경우 pre-fill
+    try {
+      const raw = localStorage.getItem("whydlab_prefill_contract");
+      if (raw) {
+        const data = JSON.parse(raw);
+        localStorage.removeItem("whydlab_prefill_contract");
+        return {
+          ...base,
+          title: data.title ?? "",
+          client: data.client ?? "",
+          contract_amount: data.amount ? Number(data.amount) : 0,
+          manager: data.contact_name ?? "",
+          description: data.quote_number ? `견적서: ${data.quote_number}` : "",
+          phases: base.phases.map((p) => ({ ...p, amount: data.amount ? Math.round(Number(data.amount) * p.ratio / 100) : 0 })),
+        };
+      }
+    } catch { /* ignore */ }
+    return base;
+  });
   const [terms, setTerms] = useState<ContractTerms>(createDefaultTerms);
   const [draftHTML, setDraftHTML] = useState<string | null>(null);
   const [aiLoading, setAiLoading] = useState(false);
@@ -525,6 +545,18 @@ export default function ContractsOverviewPage() {
   const [viewMode, setViewMode] = useState<ViewMode>("kanban");
   const [showForm, setShowForm] = useState(false);
   const [editId, setEditId] = useState<string | null>(null);
+
+  // TODO: DB 연동 시 localStorage 대신 Supabase로 교체
+  // 의뢰 페이지에서 계약 상태 전환 시 자동으로 계약서 작성 폼 열기
+  useEffect(() => {
+    try {
+      const pending = localStorage.getItem("whydlab_pending_contract");
+      if (pending) {
+        localStorage.removeItem("whydlab_pending_contract");
+        setShowForm(true);
+      }
+    } catch { /* ignore */ }
+  }, []);
 
   const activeCount = proj.filter((p) => p.status === "진행중" || p.status === "계약완료").length;
   const totalSupply = proj.reduce((a, p) => a + p.contract_amount, 0);

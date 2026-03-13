@@ -9,6 +9,7 @@ import {
   dummyCertificates,
   dummyDirectProductions,
   dummyNaraCodes,
+  dummyExtraInfo,
 } from "@/data/dummy-business";
 
 interface BusinessInfo {
@@ -21,6 +22,7 @@ interface BusinessInfo {
   birth_date: string;
   founder_tags: string[];
   business_scale: string;
+  memo: string;
   updated_at: string;
 }
 
@@ -55,6 +57,13 @@ interface NaraCode {
   sort_order: number;
 }
 
+interface ExtraInfo {
+  id: string;
+  label: string;
+  value: string;
+  sort_order: number;
+}
+
 type Status = null | "saving" | "saved" | "error";
 
 let nextId = 100;
@@ -67,6 +76,7 @@ export default function BusinessPage() {
   const [certs, setCerts] = useState<Certificate[]>([]);
   const [prods, setProds] = useState<DirectProduction[]>([]);
   const [naras, setNaras] = useState<NaraCode[]>([]);
+  const [extras, setExtras] = useState<ExtraInfo[]>([]);
   const [editing, setEditing] = useState(false);
   const [status, setStatus] = useState<Status>(null);
   const [loading, setLoading] = useState(true);
@@ -80,6 +90,7 @@ export default function BusinessPage() {
     setCerts(dummyCertificates.map((c) => ({ ...c })));
     setProds(dummyDirectProductions.map((d) => ({ ...d })));
     setNaras(dummyNaraCodes.map((n) => ({ ...n })));
+    setExtras(dummyExtraInfo.map((e) => ({ ...e })));
     setLoading(false);
   };
 
@@ -135,6 +146,14 @@ export default function BusinessPage() {
     setNaras(naras.filter((n) => n.id !== id));
   };
 
+  const addExtra = () => {
+    setExtras([...extras, { id: genId(), label: "", value: "", sort_order: extras.length + 1 }]);
+  };
+
+  const removeExtra = (id: string) => {
+    setExtras(extras.filter((e) => e.id !== id));
+  };
+
   // ── Update helpers ──
   const updateInfo = (field: keyof BusinessInfo, value: string | string[]) => {
     if (!info) return;
@@ -155,6 +174,10 @@ export default function BusinessPage() {
 
   const updateNara = (id: string, field: keyof NaraCode, value: string) => {
     setNaras(naras.map((n) => (n.id === id ? { ...n, [field]: value } : n)));
+  };
+
+  const updateExtra = (id: string, field: keyof ExtraInfo, value: string) => {
+    setExtras(extras.map((e) => (e.id === id ? { ...e, [field]: value } : e)));
   };
 
   if (loading) {
@@ -279,6 +302,47 @@ export default function BusinessPage() {
                 )}
               </div>
             </div>
+          </div>
+        </div>
+
+        {/* 부가정보 */}
+        <div className={s.section}>
+          <div className={s.sectionHeader}>
+            <span className={s.sectionTitle}>
+              <span className={s.sectionIcon}>📌</span> 부가정보
+            </span>
+            {editing && (
+              <button className={`${s.btn} ${s.btnSmall}`} onClick={addExtra}>+ 추가</button>
+            )}
+          </div>
+          <div className={s.formGrid}>
+            {extras.map((ex) => (
+              <div key={ex.id} className={s.formGroup} style={{ position: "relative" }}>
+                {editing ? (
+                  <>
+                    <input className={s.formInput} value={ex.label} placeholder="항목명"
+                      style={{ fontSize: 11.5, fontWeight: 600, color: "var(--color-text-secondary)", padding: "5px 8px", marginBottom: 2 }}
+                      onChange={(e) => updateExtra(ex.id, "label", e.target.value)} />
+                    <div style={{ display: "flex", gap: 4, alignItems: "center" }}>
+                      <input className={s.formInput} value={ex.value} placeholder="값 입력"
+                        style={{ flex: 1 }}
+                        onChange={(e) => updateExtra(ex.id, "value", e.target.value)} />
+                      <button className={s.btnIcon} onClick={() => removeExtra(ex.id)}>🗑</button>
+                    </div>
+                  </>
+                ) : (
+                  <>
+                    <label className={s.formLabel}>{ex.label || "(항목명 없음)"}</label>
+                    <input className={s.formInput} value={ex.value} disabled />
+                  </>
+                )}
+              </div>
+            ))}
+            {extras.length === 0 && !editing && (
+              <div style={{ gridColumn: "1 / -1", fontSize: 13, color: "var(--color-text-tertiary)", padding: "8px 0" }}>
+                등록된 부가정보가 없습니다.
+              </div>
+            )}
           </div>
         </div>
 
@@ -457,6 +521,23 @@ export default function BusinessPage() {
               </tbody>
             </table>
           </div>
+        </div>
+
+        {/* 비고 (메모) */}
+        <div className={s.section}>
+          <div className={s.sectionHeader}>
+            <span className={s.sectionTitle}>
+              <span className={s.sectionIcon}>📝</span> 비고
+            </span>
+          </div>
+          <textarea
+            className={s.formInput}
+            style={{ width: "100%", minHeight: 100, resize: "vertical", lineHeight: 1.7 }}
+            placeholder="참고사항을 입력하세요"
+            value={info.memo ?? ""}
+            disabled={!editing}
+            onChange={(e) => updateInfo("memo", e.target.value)}
+          />
         </div>
       </div>
     </>

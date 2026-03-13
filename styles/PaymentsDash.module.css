@@ -1,0 +1,150 @@
+/* ── 월별 수금 차트 ── */
+.chartContainer {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.chartHeader {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.chartTitleRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.yearNav {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.yearBtn {
+  width: 26px;
+  height: 26px;
+  border: 1px solid var(--color-border);
+  border-radius: 6px;
+  background: var(--color-white);
+  color: var(--color-text-secondary);
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: border-color var(--transition), color var(--transition);
+}
+
+.yearBtn:hover:not(:disabled) {
+  border-color: var(--color-primary);
+  color: var(--color-primary);
+}
+
+.yearBtn:disabled {
+  opacity: 0.3;
+  cursor: default;
+}
+
+.yearLabel {
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--color-text);
+  min-width: 52px;
+  text-align: center;
+}
+
+.chartLegend {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  font-size: 12px;
+  color: var(--color-text-secondary);
+}
+
+.legendItem {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  font-weight: 600;
+}
+
+.legendDotCollected {
+  width: 10px;
+  height: 10px;
+  border-radius: 2px;
+  background: #3182f6;
+  opacity: 0.85;
+}
+
+.legendDotScheduled {
+  width: 10px;
+  height: 10px;
+  border-radius: 2px;
+  background: #c7d2fe;
+  opacity: 0.7;
+}
+
+.legendDotExpense {
+  width: 10px;
+  height: 10px;
+  border-radius: 2px;
+  background: #f97316;
+  opacity: 0.7;
+}
+
+.legendSep {
+  color: var(--color-border);
+  font-weight: 400;
+}
+
+.legendTotal {
+  font-weight: 700;
+  color: var(--color-text);
+}
+
+.chartSvg {
+  width: 100%;
+  display: block;
+}
+
+.axisLabel {
+  fill: var(--color-text-tertiary);
+  font-size: 10px;
+  font-weight: 600;
+}
+
+.barValueLabel {
+  fill: var(--color-text-secondary);
+  font-size: 9px;
+  font-weight: 700;
+}
+
+.monthLabel {
+  fill: var(--color-text-secondary);
+  font-size: 11px;
+  font-weight: 600;
+}
+
+.monthLabelCurrent {
+  fill: var(--color-primary);
+  font-weight: 800;
+}
+
+@media (max-width: 768px) {
+  .chartLegend {
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+
+  .barValueLabel {
+    font-size: 8px;
+  }
+
+  .monthLabel {
+    font-size: 9px;
+  }
+}

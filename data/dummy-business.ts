@@ -10,6 +10,7 @@ export const dummyBusinessInfo = {
   birth_date: "1994-06-30",
   founder_tags: ["7년 이내 스타트업", "청년 창업자"],
   business_scale: "5인 미만 소규모 사업장",
+  memo: "",
   updated_at: new Date().toISOString(),
 };
 
@@ -39,6 +40,15 @@ export const dummyDirectProductions = [
   { id: "dp-2", certificate_name: "직접생산업체 증명서", major_category: "공학연구 및 기술 기반 서비스", minor_category: "소프트웨어 유지 및 지원", detail_item: "소프트웨어 유지 및 지원 서비스", sort_order: 2 },
   { id: "dp-3", certificate_name: "영상 제작 직접생산업체", major_category: "", minor_category: "", detail_item: "", sort_order: 3 },
   { id: "dp-4", certificate_name: "기타행사대행업 직접생산업체", major_category: "", minor_category: "", detail_item: "", sort_order: 4 },
+];
+
+export const dummyExtraInfo = [
+  { id: "ex-1", label: "회사 이메일", value: "contact@whydlab.com", sort_order: 1 },
+  { id: "ex-2", label: "대표 연락처", value: "010-1234-5678", sort_order: 2 },
+  { id: "ex-3", label: "팩스번호", value: "031-123-4567", sort_order: 3 },
+  { id: "ex-4", label: "홈페이지", value: "https://whydlab.com", sort_order: 4 },
+  { id: "ex-5", label: "주거래 은행", value: "기업은행 546-012345-01-011", sort_order: 5 },
+  { id: "ex-6", label: "세무사", value: "OO세무법인 (담당: 김OO)", sort_order: 6 },
 ];
 
 export const dummyNaraCodes = [
