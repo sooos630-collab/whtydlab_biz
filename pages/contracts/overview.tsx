@@ -3,11 +3,13 @@ import { useState, useMemo, useCallback, useEffect } from "react";
 import Link from "next/link";
 import s from "@/styles/Contracts.module.css";
 import k from "@/styles/Kanban.module.css";
-import { type ProjectContract } from "@/data/dummy-contracts";
+import { type ProjectContract, type PaymentPhase } from "@/data/dummy-contracts";
 import { useProjects } from "@/contexts/ProjectContext";
+import { recalculateProjectContract } from "@/lib/project-contracts";
 import ProjectEditModal from "@/components/ProjectEditModal";
 
-type ViewMode = "kanban" | "timeline";
+type ViewMode = "kanban" | "timeline" | "table" | "client";
+type ClientDetailTab = "history" | "files" | "collection";
 type SettlementType = "milestone" | "recurring";
 type VatOption = "별도" | "포함" | "면세";
 
@@ -84,10 +86,10 @@ function createDefaultForm(): ContractForm {
 }
 
 const STAGES = [
-  { id: "납품완료", label: "계약중단", color: "#f04452" },
   { id: "제안", label: "견적/계약준비", color: "#6b7684" },
   { id: "계약완료", label: "계약완료", color: "#f59e0b" },
   { id: "진행중", label: "진행중", color: "#3182f6" },
+  { id: "납품완료", label: "납품완료", color: "#00c471" },
   { id: "정산완료", label: "정산완료", color: "#b0b8c1" },
 ] as const;
 
@@ -99,7 +101,7 @@ const statusBadge = (st: string) => {
     case "제안": return s.badgeGray;
     case "계약완료": return s.badgeOrange;
     case "진행중": return s.badgeBlue;
-    case "납품완료": return s.badgeRed;
+    case "납품완료": return s.badgeGreen;
     case "정산완료": return s.badgeGray;
     default: return s.badgeGray;
   }
@@ -541,10 +543,23 @@ function ContractFormModal({ onClose, onSave }: { onClose: () => void; onSave: (
 }
 
 export default function ContractsOverviewPage() {
-  const { projects: proj, files: projFiles, updateProject, deleteFile } = useProjects();
+  const { projects: proj, files: projFiles, updateProject, addProject, deleteFile } = useProjects();
   const [viewMode, setViewMode] = useState<ViewMode>("kanban");
   const [showForm, setShowForm] = useState(false);
   const [editId, setEditId] = useState<string | null>(null);
+  const [filterClient, setFilterClient] = useState("");
+  const [searchText, setSearchText] = useState("");
+
+  const clientList = useMemo(() => [...new Set(proj.map((p) => p.client).filter(Boolean))].sort(), [proj]);
+  const filteredProj = useMemo(() => {
+    let result = proj;
+    if (filterClient) result = result.filter((p) => p.client === filterClient);
+    if (searchText.trim()) {
+      const t = searchText.trim().toLowerCase();
+      result = result.filter((p) => p.project_name.toLowerCase().includes(t) || p.client.toLowerCase().includes(t) || p.contract_number.toLowerCase().includes(t) || p.manager.toLowerCase().includes(t));
+    }
+    return result;
+  }, [proj, filterClient, searchText]);
 
   // TODO: DB 연동 시 localStorage 대신 Supabase로 교체
   // 의뢰 페이지에서 계약 상태 전환 시 자동으로 계약서 작성 폼 열기
@@ -558,18 +573,59 @@ export default function ContractsOverviewPage() {
     } catch { /* ignore */ }
   }, []);
 
-  const activeCount = proj.filter((p) => p.status === "진행중" || p.status === "계약완료").length;
-  const totalSupply = proj.reduce((a, p) => a + p.contract_amount, 0);
-  const totalSettled = proj.reduce((a, p) => a + p.total_settled, 0);
+  const activeCount = filteredProj.filter((p) => p.status === "진행중" || p.status === "계약완료").length;
+  const totalSupply = filteredProj.reduce((a, p) => a + p.contract_amount, 0);
+  const totalSettled = filteredProj.reduce((a, p) => a + p.total_settled, 0);
   const totalUnsettled = totalSupply - totalSettled;
-  const avgProfit = proj.length > 0 ? Math.round(proj.reduce((a, p) => a + p.profit_rate, 0) / proj.length) : 0;
+  const avgProfit = filteredProj.length > 0 ? Math.round(filteredProj.reduce((a, p) => a + p.profit_rate, 0) / filteredProj.length) : 0;
+
+  const today = new Date().toISOString().slice(0, 10);
+  const thisMonth = today.slice(0, 7);
+
+  // 이번 달 수금 예정
+  const upcomingThisMonth = filteredProj.flatMap((p) => p.payment_phases.filter((ph) => !ph.paid && ph.due_date.startsWith(thisMonth)));
+  const upcomingAmount = upcomingThisMonth.reduce((a, ph) => a + ph.amount, 0);
+
+  // 연체 건수 (미수금 + 예정일 지남)
+  const overduePhases = filteredProj.flatMap((p) => p.payment_phases.filter((ph) => !ph.paid && ph.due_date < today));
+  const overdueCount = overduePhases.length;
+  const overdueAmount = overduePhases.reduce((a, ph) => a + ph.amount, 0);
+
+  // 평균 수금율
+  const avgCollectionRate = filteredProj.length > 0 ? Math.round(filteredProj.reduce((a, p) => a + p.collection_rate, 0) / filteredProj.length) : 0;
+
+  const [showCompleted, setShowCompleted] = useState(false);
+  const [clientDetailName, setClientDetailName] = useState<string | null>(null);
+  const [clientDetailTab, setClientDetailTab] = useState<ClientDetailTab>("history");
+
+  // 기업별 데이터 집계
+  const clientGroups = useMemo(() => {
+    const map = new Map<string, { projects: typeof proj; files: typeof projFiles; totalAmount: number; totalSettled: number; latestDate: string }>();
+    proj.forEach((p) => {
+      const key = p.client;
+      if (!key) return;
+      const g = map.get(key) || { projects: [], files: [], totalAmount: 0, totalSettled: 0, latestDate: "" };
+      g.projects.push(p);
+      g.totalAmount += p.contract_amount;
+      g.totalSettled += p.total_settled;
+      if (p.contract_date > g.latestDate) g.latestDate = p.contract_date;
+      map.set(key, g);
+    });
+    projFiles.forEach((f) => {
+      const p = proj.find((pr) => pr.id === f.contract_id);
+      if (!p) return;
+      const g = map.get(p.client);
+      if (g) g.files.push(f);
+    });
+    return map;
+  }, [proj, projFiles]);
+
+  const clientDetailData = clientDetailName ? clientGroups.get(clientDetailName) : null;
 
   const editProject = proj.find((p) => p.id === editId) ?? null;
   const editFiles = editId ? projFiles.filter((f) => f.contract_id === editId) : [];
   const handleEditSave = (updated: ProjectContract) => { updateProject(updated); setEditId(null); };
   const handleEditDeleteFile = (fileId: string) => { if (!confirm("파일을 삭제하시겠습니까?")) return; deleteFile(fileId); };
-
-  const today = new Date().toISOString().slice(0, 10);
 
   /* ── 타임라인 계산 ── */
   const timelineRange = useMemo(() => {
@@ -587,7 +643,7 @@ export default function ContractsOverviewPage() {
       cur.setMonth(cur.getMonth() + 1);
     }
     return { start: min, end: max, months };
-  }, []);
+  }, [proj]);
 
   const getBarPosition = (startStr: string, endStr: string) => {
     const totalMs = timelineRange.end.getTime() - timelineRange.start.getTime();
@@ -609,17 +665,17 @@ export default function ContractsOverviewPage() {
       <div className={s.page} style={{ maxWidth: "100%" }}>
         {/* 헤더 */}
         <div className={s.pageHeader} style={{ flexWrap: "wrap", gap: 10 }}>
-          <h1>계약현황관리 <span className={s.count}>진행 {activeCount}건 / 전체 {proj.length}건</span></h1>
+          <h1>계약현황관리 <span className={s.count}>진행 {activeCount}건 / 전체 {filteredProj.length}건{filterClient || searchText ? " (필터)" : ""}</span></h1>
           <div style={{ display: "flex", gap: 6, alignItems: "center", flexWrap: "wrap" }}>
             <button className={`${s.btn} ${s.btnSmall} ${s.btnPrimary}`} onClick={() => setShowForm(true)}>+ 계약서 작성</button>
             <div style={{ width: 1, height: 20, background: "var(--color-border)", margin: "0 2px" }} />
             <div style={{ display: "flex", background: "var(--color-divider)", borderRadius: 8, padding: 2 }}>
-              {(["kanban", "timeline"] as const).map((m) => (
-                <button key={m} className={`${s.btn} ${s.btnSmall}`} style={{
-                  background: viewMode === m ? "var(--color-white)" : "transparent",
-                  boxShadow: viewMode === m ? "var(--shadow-xs)" : "none", border: "none",
-                }} onClick={() => setViewMode(m)}>
-                  {m === "kanban" ? "칸반" : "타임라인"}
+              {([{ id: "kanban" as ViewMode, label: "칸반" }, { id: "table" as ViewMode, label: "리스트" }, { id: "client" as ViewMode, label: "기업별" }, { id: "timeline" as ViewMode, label: "타임라인" }]).map((m) => (
+                <button key={m.id} className={`${s.btn} ${s.btnSmall}`} style={{
+                  background: viewMode === m.id ? "var(--color-white)" : "transparent",
+                  boxShadow: viewMode === m.id ? "var(--shadow-xs)" : "none", border: "none",
+                }} onClick={() => setViewMode(m.id)}>
+                  {m.label}
                 </button>
               ))}
             </div>
@@ -627,19 +683,38 @@ export default function ContractsOverviewPage() {
         </div>
 
         {/* 요약 카드 */}
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(140px, 1fr))", gap: 10, marginBottom: 16 }}>
-          <div className={s.summaryCard}><div className={s.summaryLabel}>진행중 프로젝트</div><div className={s.summaryValue}>{activeCount}<span style={{ fontSize: 14, fontWeight: 500, color: "var(--color-text-secondary)", marginLeft: 2 }}>건</span></div></div>
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(120px, 1fr))", gap: 10, marginBottom: 16 }}>
+          <div className={s.summaryCard}><div className={s.summaryLabel}>진행중</div><div className={s.summaryValue}>{activeCount}<span style={{ fontSize: 14, fontWeight: 500, color: "var(--color-text-secondary)", marginLeft: 2 }}>건</span></div></div>
           <div className={s.summaryCard}><div className={s.summaryLabel}>총 계약금액</div><div className={s.summaryValue}>{fmtMan(totalSupply)}</div></div>
-          <div className={s.summaryCard}><div className={s.summaryLabel}>정산완료</div><div className={s.summaryValue} style={{ color: "var(--color-primary)" }}>{fmtMan(totalSettled)}</div></div>
-          <div className={s.summaryCard}><div className={s.summaryLabel}>미정산</div><div className={s.summaryValue} style={{ color: totalUnsettled > 0 ? "#b45309" : "var(--color-text)" }}>{fmtMan(totalUnsettled)}</div></div>
+          <div className={s.summaryCard}><div className={s.summaryLabel}>수금완료</div><div className={s.summaryValue} style={{ color: "var(--color-primary)" }}>{fmtMan(totalSettled)}</div></div>
+          <div className={s.summaryCard}><div className={s.summaryLabel}>미수금</div><div className={s.summaryValue} style={{ color: totalUnsettled > 0 ? "#b45309" : "var(--color-text)" }}>{fmtMan(totalUnsettled)}</div></div>
+          <div className={s.summaryCard}><div className={s.summaryLabel}>이번달 수금예정</div><div className={s.summaryValue} style={{ color: upcomingAmount > 0 ? "var(--color-primary)" : "var(--color-text-tertiary)" }}>{upcomingThisMonth.length > 0 ? fmtMan(upcomingAmount) : "-"}</div></div>
+          {overdueCount > 0 && <div className={s.summaryCard} style={{ borderLeft: "3px solid var(--color-danger)" }}><div className={s.summaryLabel}>연체</div><div className={s.summaryValue} style={{ color: "var(--color-danger)" }}>{overdueCount}<span style={{ fontSize: 14, fontWeight: 500, marginLeft: 2 }}>건</span><span style={{ fontSize: 11, fontWeight: 500, marginLeft: 4, color: "var(--color-text-secondary)" }}>{fmtMan(overdueAmount)}</span></div></div>}
+          <div className={s.summaryCard}><div className={s.summaryLabel}>평균 수금율</div><div className={s.summaryValue}>{avgCollectionRate}<span style={{ fontSize: 14, fontWeight: 500, marginLeft: 1 }}>%</span></div></div>
           <div className={s.summaryCard}><div className={s.summaryLabel}>평균 이익률</div><div className={s.summaryValue}>{avgProfit}<span style={{ fontSize: 14, fontWeight: 500, marginLeft: 1 }}>%</span></div></div>
+        </div>
+
+        {/* 고객사 필터 + 검색 */}
+        <div style={{ display: "flex", gap: 8, alignItems: "center", marginBottom: 14, flexWrap: "wrap" }}>
+          <select className={s.formSelect} value={filterClient} onChange={(e) => setFilterClient(e.target.value)} style={{ padding: "6px 10px", fontSize: 12, minWidth: 140, borderRadius: 6 }}>
+            <option value="">전체 고객사</option>
+            {clientList.map((c) => <option key={c} value={c}>{c}</option>)}
+          </select>
+          <div style={{ position: "relative", flex: "0 1 240px" }}>
+            <span style={{ position: "absolute", left: 8, top: "50%", transform: "translateY(-50%)", fontSize: 13, opacity: 0.4 }}>🔍</span>
+            <input className={s.formInput} placeholder="프로젝트명, 고객사, 계약번호 검색..." value={searchText} onChange={(e) => setSearchText(e.target.value)} style={{ padding: "6px 10px 6px 28px", fontSize: 12, borderRadius: 6 }} />
+          </div>
+          {(filterClient || searchText) && (
+            <button className={`${s.btn} ${s.btnSmall}`} onClick={() => { setFilterClient(""); setSearchText(""); }} style={{ fontSize: 11 }}>초기화</button>
+          )}
+          <span style={{ fontSize: 12, color: "var(--color-text-tertiary)", marginLeft: "auto" }}>{filteredProj.length}건</span>
         </div>
 
         {/* ══════ 칸반 뷰 ══════ */}
         {viewMode === "kanban" && (
           <div className={k.board}>
             {STAGES.map((stage) => {
-              const cards = proj.filter((p) => p.status === stage.id);
+              const cards = filteredProj.filter((p) => p.status === stage.id);
               return (
                 <div key={stage.id} className={k.column}>
                   <div className={k.columnHeader}>
@@ -650,21 +725,28 @@ export default function ContractsOverviewPage() {
                   <div className={k.columnBody}>
                     {cards.map((p) => {
                       const pct = Math.round((p.total_settled / p.contract_amount) * 100);
-                      const paidPhases = p.payment_phases.filter((ph) => ph.paid).length;
+                      const nextPhase = p.payment_phases.find((ph) => !ph.paid);
+                      const isOverdue = nextPhase && nextPhase.due_date < today;
                       return (
-                        <div key={p.id} className={k.card} onClick={() => setEditId(p.id)}>
+                        <div key={p.id} className={k.card} onClick={() => setEditId(p.id)} style={isOverdue ? { borderLeft: "3px solid var(--color-danger)" } : undefined}>
                           <div className={k.cardTop}>
                             <span style={{ fontSize: 10, color: "var(--color-text-tertiary)", fontFamily: "monospace" }}>{p.contract_number}</span>
                             <span className={k.cardDate}>{p.manager}</span>
                           </div>
                           <div className={k.cardTitle}>{p.project_name}</div>
-                          <div className={k.cardSub}>{p.client}</div>
+                          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 4 }}>
+                            <span className={k.cardSub}>{p.client}</span>
+                            <span style={{ fontSize: 10, color: "var(--color-text-tertiary)" }}>{p.start_date.slice(5)} ~ {p.end_date.slice(5)}</span>
+                          </div>
                           {/* 진행률 바 */}
-                          <div style={{ height: 3, background: "var(--color-divider)", borderRadius: 2, marginBottom: 8 }}>
-                            <div style={{ height: 3, width: `${p.progress}%`, background: stage.color, borderRadius: 2, transition: "width 0.3s" }} />
+                          <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 6 }}>
+                            <div style={{ flex: 1, height: 3, background: "var(--color-divider)", borderRadius: 2 }}>
+                              <div style={{ height: 3, width: `${p.progress}%`, background: stage.color, borderRadius: 2, transition: "width 0.3s" }} />
+                            </div>
+                            <span style={{ fontSize: 10, color: "var(--color-text-tertiary)", fontWeight: 600, flexShrink: 0 }}>{p.progress}%</span>
                           </div>
                           {/* 정산 dots */}
-                          <div style={{ display: "flex", gap: 4, marginBottom: 8 }}>
+                          <div style={{ display: "flex", gap: 4, marginBottom: 6 }}>
                             {p.payment_phases.map((ph, i) => (
                               <div key={i} style={{
                                 display: "flex", alignItems: "center", gap: 3,
@@ -678,10 +760,16 @@ export default function ContractsOverviewPage() {
                               </div>
                             ))}
                           </div>
+                          {/* 다음 수금 예정 */}
+                          {nextPhase && (
+                            <div style={{ fontSize: 10, padding: "3px 6px", borderRadius: 4, marginBottom: 6, background: isOverdue ? "var(--color-danger-light, #fff5f5)" : "var(--color-bg)", color: isOverdue ? "var(--color-danger)" : "var(--color-text-secondary)" }}>
+                              {isOverdue ? "연체" : "예정"} {nextPhase.label} {fmtMan(nextPhase.amount)} · {nextPhase.due_date.slice(5)}
+                            </div>
+                          )}
                           <div className={k.cardBottom}>
                             <span className={k.cardAmount}>{fmtMan(p.contract_amount)}</span>
                             <span className={k.cardFiles} style={{ fontWeight: 700, color: pct === 100 ? "var(--color-success)" : "var(--color-primary)" }}>
-                              {pct}%
+                              수금 {pct}%
                             </span>
                           </div>
                         </div>
@@ -695,9 +783,299 @@ export default function ContractsOverviewPage() {
           </div>
         )}
 
+        {/* ══════ 리스트(테이블) 뷰 ══════ */}
+        {viewMode === "table" && (
+          <div className={s.section} style={{ padding: 0, overflow: "auto" }}>
+            <table className={s.table}>
+              <thead><tr>
+                <th>코드넘버</th><th>프로젝트명</th><th>고객사</th><th>상태</th><th>기간</th>
+                <th style={{ textAlign: "right" }}>계약금액</th>
+                <th style={{ textAlign: "right" }}>수금액</th>
+                <th style={{ textAlign: "center" }}>수금율</th>
+                <th style={{ textAlign: "center" }}>진행률</th>
+                <th style={{ textAlign: "center" }}>이익률</th>
+                <th>담당</th>
+              </tr></thead>
+              <tbody>
+                {filteredProj.map((p) => {
+                  const nextPhase = p.payment_phases.find((ph) => !ph.paid);
+                  const isOverdue = nextPhase && nextPhase.due_date < today;
+                  return (
+                    <tr key={p.id} className={s.clickableRow} onClick={() => setEditId(p.id)} style={isOverdue ? { borderLeft: "3px solid var(--color-danger)" } : undefined}>
+                      <td style={{ fontFamily: "monospace", fontSize: 11, color: "var(--color-text-tertiary)", whiteSpace: "nowrap" }}>{p.contract_number}</td>
+                      <td style={{ fontWeight: 600, maxWidth: 180, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{p.project_name}</td>
+                      <td style={{ whiteSpace: "nowrap" }}>{p.client}</td>
+                      <td><span className={`${s.badge} ${statusBadge(p.status)}`}>{p.status}</span></td>
+                      <td style={{ whiteSpace: "nowrap", fontSize: 11 }}>{p.start_date.slice(2)} ~ {p.end_date.slice(2)}</td>
+                      <td style={{ textAlign: "right", whiteSpace: "nowrap", fontWeight: 700 }}>{fmtMan(p.contract_amount)}</td>
+                      <td style={{ textAlign: "right", whiteSpace: "nowrap" }}>{fmtMan(p.total_settled)}</td>
+                      <td style={{ textAlign: "center" }}>
+                        <span style={{ fontWeight: 700, color: p.collection_rate === 100 ? "var(--color-success)" : p.collection_rate > 0 ? "var(--color-primary)" : "var(--color-text-tertiary)" }}>{p.collection_rate}%</span>
+                      </td>
+                      <td style={{ textAlign: "center" }}>
+                        <div style={{ display: "flex", alignItems: "center", gap: 4, justifyContent: "center" }}>
+                          <div style={{ width: 40, height: 4, background: "var(--color-divider)", borderRadius: 2 }}>
+                            <div style={{ width: `${p.progress}%`, height: 4, background: "var(--color-primary)", borderRadius: 2 }} />
+                          </div>
+                          <span style={{ fontSize: 11 }}>{p.progress}%</span>
+                        </div>
+                      </td>
+                      <td style={{ textAlign: "center" }}>
+                        <span style={{ fontWeight: 600, color: p.profit_rate > 50 ? "var(--color-success)" : p.profit_rate > 0 ? "var(--color-text)" : "var(--color-text-tertiary)" }}>{p.profit_rate > 0 ? `${p.profit_rate}%` : "-"}</span>
+                      </td>
+                      <td style={{ whiteSpace: "nowrap" }}>{p.manager || "-"}</td>
+                    </tr>
+                  );
+                })}
+                {filteredProj.length === 0 && <tr><td colSpan={11} style={{ textAlign: "center", padding: 40, color: "var(--color-text-tertiary)" }}>프로젝트가 없습니다</td></tr>}
+              </tbody>
+            </table>
+          </div>
+        )}
+
+        {/* ══════ 기업별 뷰 ══════ */}
+        {viewMode === "client" && (
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(280px, 1fr))", gap: 12 }}>
+            {(filterClient ? [filterClient] : [...clientGroups.keys()].sort()).map((name) => {
+              const g = clientGroups.get(name);
+              if (!g) return null;
+              const activeProj = g.projects.filter((p) => p.status === "진행중" || p.status === "계약완료").length;
+              const collectionRate = g.totalAmount > 0 ? Math.round((g.totalSettled / g.totalAmount) * 100) : 0;
+              const overdueCount = g.projects.flatMap((p) => p.payment_phases.filter((ph) => !ph.paid && ph.due_date < today)).length;
+              return (
+                <div key={name} className={s.section} style={{ padding: 16, cursor: "pointer", transition: "box-shadow 0.15s" }} onClick={() => { setClientDetailName(name); setClientDetailTab("history"); }}
+                  onMouseEnter={(e) => (e.currentTarget.style.boxShadow = "var(--shadow-md)")} onMouseLeave={(e) => (e.currentTarget.style.boxShadow = "")}>
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 10 }}>
+                    <div>
+                      <div style={{ fontSize: 15, fontWeight: 700, marginBottom: 2 }}>{name}</div>
+                      <div style={{ fontSize: 11, color: "var(--color-text-tertiary)" }}>프로젝트 {g.projects.length}건 · 진행중 {activeProj}건</div>
+                    </div>
+                    {overdueCount > 0 && <span style={{ fontSize: 10, padding: "2px 8px", borderRadius: 100, background: "var(--color-danger-light, #fff5f5)", color: "var(--color-danger)", fontWeight: 700 }}>연체 {overdueCount}</span>}
+                  </div>
+                  <div style={{ display: "flex", gap: 16, fontSize: 12, marginBottom: 10 }}>
+                    <div><span style={{ color: "var(--color-text-tertiary)" }}>누적계약</span> <span style={{ fontWeight: 700 }}>{fmtMan(g.totalAmount)}</span></div>
+                    <div><span style={{ color: "var(--color-text-tertiary)" }}>수금</span> <span style={{ fontWeight: 700, color: "var(--color-primary)" }}>{fmtMan(g.totalSettled)}</span></div>
+                  </div>
+                  {/* 수금율 바 */}
+                  <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                    <div style={{ flex: 1, height: 6, background: "var(--color-divider)", borderRadius: 3 }}>
+                      <div style={{ height: 6, width: `${collectionRate}%`, background: collectionRate === 100 ? "var(--color-success)" : "var(--color-primary)", borderRadius: 3, transition: "width 0.3s" }} />
+                    </div>
+                    <span style={{ fontSize: 12, fontWeight: 700, color: collectionRate === 100 ? "var(--color-success)" : "var(--color-primary)", flexShrink: 0 }}>{collectionRate}%</span>
+                  </div>
+                  <div style={{ fontSize: 11, color: "var(--color-text-tertiary)", marginTop: 8 }}>최근 계약: {g.latestDate || "-"} · 서류 {g.files.length}건</div>
+                </div>
+              );
+            })}
+            {clientGroups.size === 0 && <div style={{ padding: 40, textAlign: "center", color: "var(--color-text-tertiary)", gridColumn: "1/-1" }}>등록된 기업이 없습니다</div>}
+          </div>
+        )}
+
+        {/* ══════ 기업별 상세 모달 ══════ */}
+        {clientDetailName && clientDetailData && (
+          <div className={s.modalOverlay} onClick={(e) => e.target === e.currentTarget && setClientDetailName(null)}>
+            <div className={s.modal} style={{ maxWidth: 900, width: "95vw" }}>
+              <div className={s.modalHeader}>
+                <h2 className={s.modalTitle}>{clientDetailName}</h2>
+                <button className={s.btnIcon} onClick={() => setClientDetailName(null)} style={{ fontSize: 18 }}>✕</button>
+              </div>
+
+              {/* 요약 */}
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(120px, 1fr))", gap: 8, padding: "12px 20px" }}>
+                <div className={s.summaryCard} style={{ padding: "10px 14px" }}><div className={s.summaryLabel}>총 프로젝트</div><div className={s.summaryValue} style={{ fontSize: 18 }}>{clientDetailData.projects.length}<span style={{ fontSize: 12, marginLeft: 2 }}>건</span></div></div>
+                <div className={s.summaryCard} style={{ padding: "10px 14px" }}><div className={s.summaryLabel}>누적계약금액</div><div className={s.summaryValue} style={{ fontSize: 18 }}>{fmtMan(clientDetailData.totalAmount)}</div></div>
+                <div className={s.summaryCard} style={{ padding: "10px 14px" }}><div className={s.summaryLabel}>총 수금액</div><div className={s.summaryValue} style={{ fontSize: 18, color: "var(--color-primary)" }}>{fmtMan(clientDetailData.totalSettled)}</div></div>
+                <div className={s.summaryCard} style={{ padding: "10px 14px" }}><div className={s.summaryLabel}>수금율</div><div className={s.summaryValue} style={{ fontSize: 18 }}>{clientDetailData.totalAmount > 0 ? Math.round((clientDetailData.totalSettled / clientDetailData.totalAmount) * 100) : 0}<span style={{ fontSize: 12, marginLeft: 1 }}>%</span></div></div>
+                <div className={s.summaryCard} style={{ padding: "10px 14px" }}><div className={s.summaryLabel}>계약서류</div><div className={s.summaryValue} style={{ fontSize: 18 }}>{clientDetailData.files.length}<span style={{ fontSize: 12, marginLeft: 2 }}>건</span></div></div>
+              </div>
+
+              {/* 탭 */}
+              <div style={{ display: "flex", gap: 2, padding: "0 20px", borderBottom: "1px solid var(--color-border)" }}>
+                {([{ id: "history" as ClientDetailTab, label: "계약이력" }, { id: "files" as ClientDetailTab, label: "계약서류" }, { id: "collection" as ClientDetailTab, label: "수금현황" }]).map((t) => (
+                  <button key={t.id} className={`${s.btn} ${s.btnSmall}`} style={{
+                    borderRadius: "6px 6px 0 0", border: "none", fontWeight: clientDetailTab === t.id ? 700 : 400,
+                    background: clientDetailTab === t.id ? "var(--color-white)" : "transparent",
+                    borderBottom: clientDetailTab === t.id ? "2px solid var(--color-primary)" : "2px solid transparent",
+                  }} onClick={() => setClientDetailTab(t.id)}>{t.label}</button>
+                ))}
+              </div>
+
+              <div className={s.modalBody} style={{ maxHeight: "calc(100vh - 360px)", overflowY: "auto", padding: "16px 20px" }}>
+
+                {/* 탭1: 계약이력 */}
+                {clientDetailTab === "history" && (
+                  <table className={s.table}>
+                    <thead><tr>
+                      <th>코드넘버</th><th>프로젝트명</th><th>상태</th><th>기간</th>
+                      <th style={{ textAlign: "right" }}>계약금액</th>
+                      <th style={{ textAlign: "right" }}>수금액</th>
+                      <th style={{ textAlign: "center" }}>수금율</th>
+                      <th style={{ textAlign: "center" }}>진행률</th>
+                      <th>담당</th>
+                    </tr></thead>
+                    <tbody>
+                      {clientDetailData.projects.sort((a, b) => b.contract_date.localeCompare(a.contract_date)).map((p) => (
+                        <tr key={p.id} className={s.clickableRow} onClick={() => { setClientDetailName(null); setEditId(p.id); }}>
+                          <td style={{ fontFamily: "monospace", fontSize: 11, color: "var(--color-text-tertiary)", whiteSpace: "nowrap" }}>{p.contract_number}</td>
+                          <td style={{ fontWeight: 600 }}>{p.project_name}</td>
+                          <td><span className={`${s.badge} ${statusBadge(p.status)}`}>{p.status}</span></td>
+                          <td style={{ whiteSpace: "nowrap", fontSize: 11 }}>{p.start_date.slice(2)} ~ {p.end_date.slice(2)}</td>
+                          <td style={{ textAlign: "right", fontWeight: 700, whiteSpace: "nowrap" }}>{fmtMan(p.contract_amount)}</td>
+                          <td style={{ textAlign: "right", whiteSpace: "nowrap" }}>{fmtMan(p.total_settled)}</td>
+                          <td style={{ textAlign: "center" }}><span style={{ fontWeight: 700, color: p.collection_rate === 100 ? "var(--color-success)" : "var(--color-primary)" }}>{p.collection_rate}%</span></td>
+                          <td style={{ textAlign: "center" }}>
+                            <div style={{ display: "flex", alignItems: "center", gap: 4, justifyContent: "center" }}>
+                              <div style={{ width: 36, height: 4, background: "var(--color-divider)", borderRadius: 2 }}><div style={{ width: `${p.progress}%`, height: 4, background: "var(--color-primary)", borderRadius: 2 }} /></div>
+                              <span style={{ fontSize: 11 }}>{p.progress}%</span>
+                            </div>
+                          </td>
+                          <td style={{ whiteSpace: "nowrap" }}>{p.manager || "-"}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                    <tfoot>
+                      <tr style={{ fontWeight: 700, borderTop: "2px solid var(--color-border)" }}>
+                        <td colSpan={4}>합계 ({clientDetailData.projects.length}건)</td>
+                        <td style={{ textAlign: "right" }}>{fmtMan(clientDetailData.totalAmount)}</td>
+                        <td style={{ textAlign: "right", color: "var(--color-primary)" }}>{fmtMan(clientDetailData.totalSettled)}</td>
+                        <td style={{ textAlign: "center" }}>{clientDetailData.totalAmount > 0 ? Math.round((clientDetailData.totalSettled / clientDetailData.totalAmount) * 100) : 0}%</td>
+                        <td colSpan={2} />
+                      </tr>
+                    </tfoot>
+                  </table>
+                )}
+
+                {/* 탭2: 계약서류 — 프로젝트별 그룹, 초안/최종 분류 */}
+                {clientDetailTab === "files" && (
+                  <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+                    {clientDetailData.projects.sort((a, b) => b.contract_date.localeCompare(a.contract_date)).map((p) => {
+                      const pFiles = clientDetailData.files.filter((f) => f.contract_id === p.id);
+                      const drafts = pFiles.filter((f) => f.file_type === "계약서초안");
+                      const finals = pFiles.filter((f) => f.file_type === "최종계약서");
+                      const others = pFiles.filter((f) => f.file_type !== "계약서초안" && f.file_type !== "최종계약서");
+                      return (
+                        <div key={p.id} className={s.section} style={{ padding: 14 }}>
+                          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10 }}>
+                            <div>
+                              <span style={{ fontSize: 13, fontWeight: 700 }}>{p.project_name}</span>
+                              <span style={{ fontSize: 11, color: "var(--color-text-tertiary)", marginLeft: 8 }}>{p.contract_number}</span>
+                            </div>
+                            <span className={`${s.badge} ${statusBadge(p.status)}`}>{p.status}</span>
+                          </div>
+                          {pFiles.length === 0 ? (
+                            <div style={{ fontSize: 12, color: "var(--color-text-tertiary)", padding: "12px 0", textAlign: "center" }}>등록된 서류가 없습니다</div>
+                          ) : (
+                            <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                              {/* 계약서 초안 */}
+                              {drafts.length > 0 && (
+                                <div>
+                                  <div style={{ fontSize: 11, fontWeight: 700, color: "var(--color-text-tertiary)", marginBottom: 4, display: "flex", alignItems: "center", gap: 4 }}>
+                                    <span style={{ width: 8, height: 8, borderRadius: 4, background: "#f59e0b", display: "inline-block" }} /> 계약서 초안
+                                  </div>
+                                  {drafts.map((f) => (
+                                    <div key={f.id} style={{ display: "flex", alignItems: "center", gap: 8, padding: "4px 0 4px 12px", fontSize: 12 }}>
+                                      <span style={{ color: "var(--color-text-secondary)" }}>{f.file_name}</span>
+                                      <span style={{ fontSize: 10, color: "var(--color-text-tertiary)" }}>{f.uploaded_at}</span>
+                                      <span style={{ fontSize: 10, color: "var(--color-text-tertiary)" }}>{f.file_size < 1024 * 1024 ? Math.round(f.file_size / 1024) + "KB" : (f.file_size / 1024 / 1024).toFixed(1) + "MB"}</span>
+                                    </div>
+                                  ))}
+                                </div>
+                              )}
+                              {/* 최종 계약서 */}
+                              {finals.length > 0 && (
+                                <div>
+                                  <div style={{ fontSize: 11, fontWeight: 700, color: "var(--color-text-tertiary)", marginBottom: 4, display: "flex", alignItems: "center", gap: 4 }}>
+                                    <span style={{ width: 8, height: 8, borderRadius: 4, background: "#3182f6", display: "inline-block" }} /> 최종 계약서
+                                  </div>
+                                  {finals.map((f) => (
+                                    <div key={f.id} style={{ display: "flex", alignItems: "center", gap: 8, padding: "4px 0 4px 12px", fontSize: 12 }}>
+                                      <span style={{ fontWeight: 600 }}>{f.file_name}</span>
+                                      <span style={{ fontSize: 10, color: "var(--color-text-tertiary)" }}>{f.uploaded_at}</span>
+                                      <span style={{ fontSize: 10, color: "var(--color-text-tertiary)" }}>{f.file_size < 1024 * 1024 ? Math.round(f.file_size / 1024) + "KB" : (f.file_size / 1024 / 1024).toFixed(1) + "MB"}</span>
+                                    </div>
+                                  ))}
+                                </div>
+                              )}
+                              {/* 기타 서류 */}
+                              {others.length > 0 && (
+                                <div>
+                                  <div style={{ fontSize: 11, fontWeight: 700, color: "var(--color-text-tertiary)", marginBottom: 4 }}>기타 서류</div>
+                                  {others.map((f) => (
+                                    <div key={f.id} style={{ display: "flex", alignItems: "center", gap: 8, padding: "4px 0 4px 12px", fontSize: 12 }}>
+                                      <span className={`${s.badge} ${f.file_type === "견적서" || f.file_type === "검수확인서" ? s.badgeGreen : f.file_type === "발주서" ? s.badgeOrange : s.badgeGray}`} style={{ fontSize: 10 }}>{f.file_type}</span>
+                                      <span>{f.file_name}</span>
+                                      <span style={{ fontSize: 10, color: "var(--color-text-tertiary)" }}>{f.uploaded_at}</span>
+                                    </div>
+                                  ))}
+                                </div>
+                              )}
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+
+                {/* 탭3: 수금현황 */}
+                {clientDetailTab === "collection" && (
+                  <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+                    {clientDetailData.projects.sort((a, b) => b.contract_date.localeCompare(a.contract_date)).map((p) => (
+                      <div key={p.id} className={s.section} style={{ padding: 14 }}>
+                        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
+                          <div>
+                            <span style={{ fontSize: 13, fontWeight: 700 }}>{p.project_name}</span>
+                            <span style={{ fontSize: 11, color: "var(--color-text-tertiary)", marginLeft: 8 }}>{fmtMan(p.contract_amount)}</span>
+                          </div>
+                          <span style={{ fontWeight: 700, fontSize: 13, color: p.collection_rate === 100 ? "var(--color-success)" : "var(--color-primary)" }}>수금 {p.collection_rate}%</span>
+                        </div>
+                        {/* 수금 바 */}
+                        <div style={{ height: 6, background: "var(--color-divider)", borderRadius: 3, marginBottom: 10 }}>
+                          <div style={{ height: 6, width: `${p.collection_rate}%`, background: p.collection_rate === 100 ? "var(--color-success)" : "var(--color-primary)", borderRadius: 3 }} />
+                        </div>
+                        {/* 정산 단계 */}
+                        <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 8 }}>
+                          {p.payment_phases.map((ph, i) => {
+                            const isOverdue = !ph.paid && ph.due_date < today;
+                            return (
+                              <div key={i} style={{ padding: "8px 10px", borderRadius: 8, background: ph.paid ? "var(--color-success-light, #f0fdf4)" : isOverdue ? "var(--color-danger-light, #fff5f5)" : "var(--color-bg)", border: `1px solid ${ph.paid ? "var(--color-success)" : isOverdue ? "var(--color-danger)" : "var(--color-border)"}` }}>
+                                <div style={{ fontSize: 11, fontWeight: 700, marginBottom: 4, color: ph.paid ? "var(--color-success)" : isOverdue ? "var(--color-danger)" : "var(--color-text-secondary)" }}>
+                                  {ph.label} {ph.paid ? "완료" : isOverdue ? "연체" : "예정"}
+                                </div>
+                                <div style={{ fontSize: 14, fontWeight: 700 }}>{fmtMan(ph.amount)}</div>
+                                <div style={{ fontSize: 11, color: "var(--color-text-tertiary)", marginTop: 2 }}>
+                                  {ph.paid ? `수금일: ${ph.paid_date}` : `예정일: ${ph.due_date}`}
+                                </div>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    ))}
+                    {/* 전체 합계 */}
+                    <div style={{ padding: "12px 16px", background: "var(--color-bg)", borderRadius: 8, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                      <span style={{ fontSize: 13, fontWeight: 700 }}>전체 합계</span>
+                      <div style={{ display: "flex", gap: 16, fontSize: 13 }}>
+                        <span>계약 <strong>{fmtMan(clientDetailData.totalAmount)}</strong></span>
+                        <span>수금 <strong style={{ color: "var(--color-primary)" }}>{fmtMan(clientDetailData.totalSettled)}</strong></span>
+                        <span>미수금 <strong style={{ color: clientDetailData.totalAmount - clientDetailData.totalSettled > 0 ? "#b45309" : "var(--color-success)" }}>{fmtMan(clientDetailData.totalAmount - clientDetailData.totalSettled)}</strong></span>
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        )}
+
         {/* ══════ 타임라인 뷰 ══════ */}
         {viewMode === "timeline" && (
           <div className={s.section}>
+            <div style={{ display: "flex", justifyContent: "flex-end", padding: "4px 12px 0" }}>
+              <label style={{ fontSize: 11, color: "var(--color-text-tertiary)", display: "flex", alignItems: "center", gap: 4, cursor: "pointer" }}>
+                <input type="checkbox" checked={showCompleted} onChange={(e) => setShowCompleted(e.target.checked)} /> 정산완료 포함
+              </label>
+            </div>
             {/* 월 헤더 */}
             <div style={{ display: "flex", borderBottom: "1px solid var(--color-border)", marginBottom: 4 }}>
               <div style={{ width: 200, flexShrink: 0, padding: "8px 12px", fontSize: 11, fontWeight: 600, color: "var(--color-text-tertiary)" }}>프로젝트</div>
@@ -712,7 +1090,7 @@ export default function ContractsOverviewPage() {
               </div>
             </div>
             {/* 프로젝트 행 */}
-            {proj.filter((p) => p.status !== "정산완료").map((p) => {
+            {filteredProj.filter((p) => showCompleted || p.status !== "정산완료").map((p) => {
               const bar = getBarPosition(p.start_date, p.end_date);
               const stageColor = STAGES.find((st) => st.id === p.status)?.color || "#b0b8c1";
               return (
@@ -805,8 +1183,53 @@ export default function ContractsOverviewPage() {
           <ContractFormModal
             onClose={() => setShowForm(false)}
             onSave={(form, contractNumber) => {
-              // TODO: DB 연동 시 Supabase insert
-              alert(`계약서 "${form.title}" (${contractNumber})가 등록되었습니다.`);
+              const today = new Date().toISOString().slice(0, 10);
+              const vatAmount = form.vat === "별도" ? Math.round(form.contract_amount * 0.1) : 0;
+              const totalAmountNum = form.contract_amount + vatAmount;
+              const phases: PaymentPhase[] = form.settlement_type === "milestone"
+                ? form.phases.map((p) => ({
+                    label: p.label as PaymentPhase["label"],
+                    amount: p.amount,
+                    due_date: p.due_date || today,
+                    paid: false,
+                    paid_date: null,
+                  }))
+                : [
+                    { label: "착수금", amount: Math.round(totalAmountNum * 0.3), due_date: form.start_date || today, paid: false, paid_date: null },
+                    { label: "중도금", amount: Math.round(totalAmountNum * 0.4), due_date: form.end_date || today, paid: false, paid_date: null },
+                    { label: "잔금", amount: totalAmountNum - Math.round(totalAmountNum * 0.3) - Math.round(totalAmountNum * 0.4), due_date: form.end_date || today, paid: false, paid_date: null },
+                  ];
+              const newProject: ProjectContract = {
+                id: `proj-${Date.now()}`,
+                contract_number: contractNumber,
+                project_name: form.title,
+                client: form.client,
+                description: form.description,
+                progress: 0,
+                acquisition_channel: "직접영업",
+                invoice_issued: false,
+                start_date: form.start_date || today,
+                end_date: form.end_date || today,
+                supply_amount: form.contract_amount,
+                vat_amount: vatAmount,
+                total_amount_num: totalAmountNum,
+                billing_initial: phases[0]?.amount || 0,
+                billing_interim: phases[1]?.amount || 0,
+                billing_final: phases[2]?.amount || 0,
+                collected_initial: 0, collected_interim: 0, collected_final: 0,
+                collected_amount: 0, remaining_amount: totalAmountNum, collection_rate: 0,
+                input_cost: 0, net_profit: 0, net_profit_rate: 0,
+                team_members: form.manager ? [form.manager] : [],
+                status: "계약완료",
+                manager: form.manager,
+                contract_date: today,
+                total_amount: "",
+                paid_amount: "",
+                contract_amount: totalAmountNum,
+                payment_phases: phases,
+                total_settled: 0, total_expense: 0, profit_rate: 0,
+              };
+              addProject(recalculateProjectContract(newProject));
               setShowForm(false);
             }}
           />

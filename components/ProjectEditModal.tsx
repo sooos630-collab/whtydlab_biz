@@ -7,7 +7,8 @@ const fmtFileSize = (b: number) => b < 1024 * 1024 ? Math.round(b / 1024) + "KB"
 
 const fileTypeBadgeColor = (ft: string) => {
   switch (ft) {
-    case "계약서": return s.badgeBlue;
+    case "계약서": case "최종계약서": return s.badgeBlue;
+    case "계약서초안": return s.badgeOrange;
     case "견적서": case "검수확인서": return s.badgeGreen;
     case "발주서": case "변경계약서": return s.badgeOrange;
     case "NDA": return s.badgeRed;

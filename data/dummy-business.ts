@@ -51,6 +51,37 @@ export const dummyExtraInfo = [
   { id: "ex-6", label: "세무사", value: "OO세무법인 (담당: 김OO)", sort_order: 6 },
 ];
 
+// ── 대표자 정보 ──
+export const dummyRepresentativeInfo = {
+  id: "rep-1",
+  name: "홍길동",
+  birth_date: "1994-06-30",
+  gender: "남",
+  phone: "010-1234-5678",
+  email: "hong@whydlab.com",
+  address: "경기 화성시 동탄영천로 150",
+  zipcode: "18462",
+  memo: "",
+  updated_at: new Date().toISOString(),
+};
+
+export const dummyEducations = [
+  { id: "edu-1", school_name: "한양대학교", major: "시각디자인학과", degree: "학사", graduation_year: "2018", status: "졸업", sort_order: 1 },
+  { id: "edu-2", school_name: "OO고등학교", major: "", degree: "고졸", graduation_year: "2013", status: "졸업", sort_order: 2 },
+];
+
+export const dummyQualifications = [
+  { id: "qual-1", qualification_name: "컴퓨터그래픽스운용기능사", issuer: "한국산업인력공단", acquired_date: "2017-05-20", certificate_number: "17201050001A", sort_order: 1 },
+  { id: "qual-2", qualification_name: "웹디자인기능사", issuer: "한국산업인력공단", acquired_date: "2016-09-15", certificate_number: "16301090002B", sort_order: 2 },
+  { id: "qual-3", qualification_name: "GTQ 1급", issuer: "한국생산성본부", acquired_date: "2016-03-10", certificate_number: "GTQ-2016-00123", sort_order: 3 },
+];
+
+export const dummyCareers = [
+  { id: "car-1", company_name: "OO디자인", position: "디자이너", start_date: "2018-03", end_date: "2020-06", description: "웹/앱 UI디자인, 브랜딩", sort_order: 1 },
+  { id: "car-2", company_name: "XX스튜디오", position: "선임 디자이너", start_date: "2020-07", end_date: "2024-02", description: "UX/UI 디자인 리드, 클라이언트 커뮤니케이션", sort_order: 2 },
+  { id: "car-3", company_name: "와이디랩", position: "대표", start_date: "2024-03", end_date: "", description: "디자인 및 소프트웨어 개발 총괄", sort_order: 3 },
+];
+
 export const dummyNaraCodes = [
   { id: "n-1", name: "산업디자인전문회사", code: "4440", sort_order: 1 },
   { id: "n-2", name: "소프트웨어사업자", code: "1468", sort_order: 2 },

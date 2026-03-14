@@ -886,12 +886,14 @@ export default function QuotesPage() {
   }));
   const [showAdvFilter, setShowAdvFilter] = useState(false);
 
+  const [filterClient, setFilterClient] = useState("");
   const [filterManager, setFilterManager] = useState("");
   const [filterDateFrom, setFilterDateFrom] = useState("");
   const [filterDateTo, setFilterDateTo] = useState("");
   const [filterAmountMin, setFilterAmountMin] = useState("");
   const [filterAmountMax, setFilterAmountMax] = useState("");
 
+  const clients = useMemo(() => [...new Set(list.map((q) => q.receiver.company_name || q.receiver_company || q.client).filter(Boolean))].sort(), [list]);
   const managers = useMemo(() => [...new Set(list.map((q) => q.manager).filter(Boolean))], [list]);
 
   const addHistory = useCallback((quoteId: string, quoteNumber: string, quoteName: string, action: HistoryEntry["action"], detail: string) => {
@@ -905,21 +907,22 @@ export default function QuotesPage() {
       const t = search.trim().toLowerCase();
       result = result.filter((q) => q.quote_number.toLowerCase().includes(t) || q.quote_name.toLowerCase().includes(t) || q.title.toLowerCase().includes(t) || q.client.toLowerCase().includes(t) || q.receiver_company.toLowerCase().includes(t) || q.manager.toLowerCase().includes(t));
     }
+    if (filterClient) result = result.filter((q) => (q.receiver.company_name || q.receiver_company || q.client) === filterClient);
     if (filterManager) result = result.filter((q) => q.manager === filterManager);
     if (filterDateFrom) result = result.filter((q) => q.quote_date >= filterDateFrom);
     if (filterDateTo) result = result.filter((q) => q.quote_date <= filterDateTo);
     if (filterAmountMin) result = result.filter((q) => q.total_amount >= Number(filterAmountMin));
     if (filterAmountMax) result = result.filter((q) => q.total_amount <= Number(filterAmountMax));
     return result.sort((a, b) => b.created_at.localeCompare(a.created_at));
-  }, [list, filter, search, filterManager, filterDateFrom, filterDateTo, filterAmountMin, filterAmountMax]);
+  }, [list, filter, search, filterClient, filterManager, filterDateFrom, filterDateTo, filterAmountMin, filterAmountMax]);
 
   const totalAmount = list.reduce((a, q) => a + q.total_amount, 0);
   const wonCount = list.filter((q) => q.status === "수주").length;
   const pendingCount = list.filter((q) => q.status === "작성중" || q.status === "발송완료").length;
   const wonRate = list.length > 0 ? Math.round(wonCount / list.length * 100) : 0;
 
-  const advFilterCount = [filterManager, filterDateFrom, filterDateTo, filterAmountMin, filterAmountMax].filter(Boolean).length;
-  const clearAdvFilter = () => { setFilterManager(""); setFilterDateFrom(""); setFilterDateTo(""); setFilterAmountMin(""); setFilterAmountMax(""); };
+  const advFilterCount = [filterClient, filterManager, filterDateFrom, filterDateTo, filterAmountMin, filterAmountMax].filter(Boolean).length;
+  const clearAdvFilter = () => { setFilterClient(""); setFilterManager(""); setFilterDateFrom(""); setFilterDateTo(""); setFilterAmountMin(""); setFilterAmountMax(""); };
 
   const addNewQuote = () => {
     const nq = emptyQuote();
@@ -1051,6 +1054,7 @@ export default function QuotesPage() {
               <div className={s.filterPanel}>
                 <div className={s.filterHeader}><span className={s.filterTitle}>고급 필터{advFilterCount > 0 && <span className={s.filterCount}>{advFilterCount}개 적용중</span>}</span>{advFilterCount > 0 && <button className={s.linkBtn} onClick={clearAdvFilter}>초기화</button>}</div>
                 <div className={s.filterGrid}>
+                  <div><label className={s.formLabel}>고객사</label><select className={s.formSelect} value={filterClient} onChange={(e) => setFilterClient(e.target.value)} style={{ padding: "7px 8px", fontSize: 12 }}><option value="">전체</option>{clients.map((c) => <option key={c} value={c}>{c}</option>)}</select></div>
                   <div><label className={s.formLabel}>담당자</label><select className={s.formSelect} value={filterManager} onChange={(e) => setFilterManager(e.target.value)} style={{ padding: "7px 8px", fontSize: 12 }}><option value="">전체</option>{managers.map((m) => <option key={m} value={m}>{m}</option>)}</select></div>
                   <div><label className={s.formLabel}>견적일 (시작)</label><input className={s.formInput} type="date" value={filterDateFrom} onChange={(e) => setFilterDateFrom(e.target.value)} style={{ padding: "7px 8px", fontSize: 12 }} /></div>
                   <div><label className={s.formLabel}>견적일 (종료)</label><input className={s.formInput} type="date" value={filterDateTo} onChange={(e) => setFilterDateTo(e.target.value)} style={{ padding: "7px 8px", fontSize: 12 }} /></div>

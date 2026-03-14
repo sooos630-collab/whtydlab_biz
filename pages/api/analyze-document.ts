@@ -5,7 +5,7 @@ import fs from "fs";
 export const config = { api: { bodyParser: false } };
 
 const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
-const GEMINI_URL = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${GEMINI_API_KEY}`;
+const GEMINI_URL = `https://generativelanguage.googleapis.com/v1beta/models/gemini-3.1-flash-lite-preview:generateContent?key=${GEMINI_API_KEY}`;
 
 const MAX_INLINE_SIZE = 20 * 1024 * 1024;
 
@@ -57,12 +57,12 @@ function buildRefDocPrompt(fileNames: string): string {
 4. 항목 번호, 들여쓰기 구조, 리스트 형식을 원본 그대로 유지하세요.
 5. 내용을 요약하거나 생략하지 마세요. 모든 문장을 그대로 추출하세요.
 6. 이미지/그림은 [그림: 설명] 형태로 표시하세요.
+7. 요약하지 마세요. 분석하지 마세요. 오직 원본 텍스트 그대로만 추출하세요.
 
 반드시 아래 JSON 형식만 응답하세요. 다른 텍스트는 포함하지 마세요.
 
 {
-  "fullContent": "문서 전체 내용을 마크다운 형식으로 빠짐없이 기재",
-  "summary": "5줄 이내 핵심 요약 (사업개요, 핵심기술, 차별성, 목표시장, 사업화전략)"
+  "fullContent": "문서 전체 내용을 마크다운 형식으로 빠짐없이 기재"
 }`;
 }
 

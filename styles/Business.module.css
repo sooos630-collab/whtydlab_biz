@@ -21,6 +21,38 @@
   margin-left: 10px;
 }
 
+/* ── Sub-tabs ── */
+.subTabs {
+  display: flex;
+  gap: 0;
+  margin-bottom: 18px;
+  border-bottom: 2px solid var(--color-border);
+}
+
+.subTab {
+  padding: 9px 20px;
+  font-size: 13.5px;
+  font-weight: 600;
+  cursor: pointer;
+  border: none;
+  background: none;
+  color: var(--color-text-tertiary);
+  border-bottom: 2px solid transparent;
+  margin-bottom: -2px;
+  transition: all var(--transition);
+  font-family: inherit;
+  letter-spacing: -0.02em;
+}
+
+.subTab:hover {
+  color: var(--color-text);
+}
+
+.subTabActive {
+  color: var(--color-primary);
+  border-bottom-color: var(--color-primary);
+}
+
 /* ── 2-column section grid ── */
 .grid2 {
   display: grid;

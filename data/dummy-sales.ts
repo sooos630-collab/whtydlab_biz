@@ -65,6 +65,7 @@ export interface SalesRequest {
   id: string;
   title: string;
   client: string;
+  client_id: string | null; // 고객DB 연동 ID
   contact_name: string;
   contact_email: string;
   contact_phone: string;
@@ -78,16 +79,29 @@ export interface SalesRequest {
 }
 
 export const dummyRequests: SalesRequest[] = [
-  { id: "req-01", title: "ESG 보고서 시스템 구축", client: "그린에너지", contact_name: "정유진", contact_email: "yj@green.kr", contact_phone: "031-7777-8888", type: "웹사이트", source: "나라장터", status: "견적서", budget: "5,000~7,000만원", deadline: "2025-06-30", created_at: "2025-03-11", memo: "공공기관 납품 경험 필요" },
-  { id: "req-02", title: "LMS 플랫폼 개발", client: "에듀플러스", contact_name: "오수빈", contact_email: "sb@edu.com", contact_phone: "02-1111-2222", type: "웹사이트", source: "소개", status: "계약", budget: "2,000~3,000만원", deadline: "2025-08-31", created_at: "2025-03-05", memo: "수강생 관리 + 결제 기능" },
-  { id: "req-03", title: "핀테크 앱 UI/UX", client: "넥스트핀테크", contact_name: "김민재", contact_email: "mj@nextfin.kr", contact_phone: "02-8888-9999", type: "앱", source: "SNS", status: "견적서", budget: "3,000~4,000만원", deadline: "2025-07-31", created_at: "2025-03-09", memo: "iOS/Android 동시 진행" },
-  { id: "req-04", title: "스타트업허브 웹/앱 리뉴얼", client: "스타트업허브", contact_name: "이민수", contact_email: "ms@starthub.kr", contact_phone: "02-5555-6666", type: "웹사이트", source: "직접", status: "수주", budget: "3,000만원", deadline: "2025-09-30", created_at: "2025-03-01", memo: "계약 완료, 4월 착수" },
-  { id: "req-05", title: "블루오션 CI 리뉴얼", client: "블루오션마케팅", contact_name: "한승우", contact_email: "sw@blue.kr", contact_phone: "02-3333-4444", type: "브랜딩", source: "홈페이지", status: "신규", budget: "미정", deadline: "-", created_at: "2025-03-12", memo: "CI 리뉴얼 견적 요청합니다" },
-  { id: "req-06", title: "건강관리 대시보드 컨설팅", client: "헬스케어랩", contact_name: "이서연", contact_email: "sy@hclab.kr", contact_phone: "010-5555-6666", type: "기타", source: "홈페이지", status: "신규", budget: "미정", deadline: "-", created_at: "2025-03-12", memo: "건강관리 대시보드 컨설팅 문의" },
-  { id: "req-07", title: "핀테크 앱 UI/UX 디자인", client: "넥스트핀테크", contact_name: "김민재", contact_email: "mj@nextfin.kr", contact_phone: "02-8888-9999", type: "앱", source: "SNS", status: "확인", budget: "미정", deadline: "-", created_at: "2025-03-08", memo: "핀테크 앱 UI/UX 디자인 의뢰" },
+  { id: "req-01", title: "ESG 보고서 시스템 구축", client: "그린에너지", client_id: "cli-06", contact_name: "정유진", contact_email: "yj@green.kr", contact_phone: "031-7777-8888", type: "웹사이트", source: "나라장터", status: "견적서", budget: "5,000~7,000만원", deadline: "2025-06-30", created_at: "2025-03-11", memo: "공공기관 납품 경험 필요" },
+  { id: "req-02", title: "LMS 플랫폼 개발", client: "에듀플러스", client_id: "cli-07", contact_name: "오수빈", contact_email: "sb@edu.com", contact_phone: "02-1111-2222", type: "웹사이트", source: "소개", status: "계약", budget: "2,000~3,000만원", deadline: "2025-08-31", created_at: "2025-03-05", memo: "수강생 관리 + 결제 기능" },
+  { id: "req-03", title: "핀테크 앱 UI/UX", client: "넥스트핀테크", client_id: null, contact_name: "김민재", contact_email: "mj@nextfin.kr", contact_phone: "02-8888-9999", type: "앱", source: "SNS", status: "견적서", budget: "3,000~4,000만원", deadline: "2025-07-31", created_at: "2025-03-09", memo: "iOS/Android 동시 진행" },
+  { id: "req-04", title: "스타트업허브 웹/앱 리뉴얼", client: "스타트업허브", client_id: null, contact_name: "이민수", contact_email: "ms@starthub.kr", contact_phone: "02-5555-6666", type: "웹사이트", source: "직접", status: "수주", budget: "3,000만원", deadline: "2025-09-30", created_at: "2025-03-01", memo: "계약 완료, 4월 착수" },
+  { id: "req-05", title: "블루오션 CI 리뉴얼", client: "블루오션마케팅", client_id: null, contact_name: "한승우", contact_email: "sw@blue.kr", contact_phone: "02-3333-4444", type: "브랜딩", source: "홈페이지", status: "신규", budget: "미정", deadline: "-", created_at: "2025-03-12", memo: "CI 리뉴얼 견적 요청합니다" },
+  { id: "req-06", title: "건강관리 대시보드 컨설팅", client: "헬스케어랩", client_id: null, contact_name: "이서연", contact_email: "sy@hclab.kr", contact_phone: "010-5555-6666", type: "기타", source: "홈페이지", status: "신규", budget: "미정", deadline: "-", created_at: "2025-03-12", memo: "건강관리 대시보드 컨설팅 문의" },
+  { id: "req-07", title: "핀테크 앱 UI/UX 디자인", client: "넥스트핀테크", client_id: null, contact_name: "김민재", contact_email: "mj@nextfin.kr", contact_phone: "02-8888-9999", type: "앱", source: "SNS", status: "확인", budget: "미정", deadline: "-", created_at: "2025-03-08", memo: "핀테크 앱 UI/UX 디자인 의뢰" },
 ];
 
+// ── 문의/의뢰 이력 ──
+export interface InquiryRecord {
+  id: string;
+  date: string;
+  type: string;
+  channel: string;
+  summary: string;
+  status: string;
+  linked_request_id: string | null;
+}
+
 // ── 고객 (기존 customers 데이터 이관) ──
+export type ClientStatus = "잠재고객" | "고객사";
+
 export interface Client {
   id: string;
   company: string;
@@ -95,21 +109,25 @@ export interface Client {
   contact_email: string;
   contact_phone: string;
   grade: "VIP" | "일반" | "잠재";
+  client_status: ClientStatus;
   industry: string;
   total_revenue: number;
   project_count: number;
   last_contact_date: string;
   memo: string;
+  source_request_ids: string[];
+  contract_ids: string[];
+  inquiry_history: InquiryRecord[];
 }
 
 export const dummyClients: Client[] = [
-  { id: "cli-01", company: "(주)에이컴퍼니", contact_name: "김지현", contact_email: "jh@acompany.kr", contact_phone: "02-1234-5678", grade: "VIP", industry: "IT/소프트웨어", total_revenue: 25000000, project_count: 1, last_contact_date: "2025-03-10", memo: "브랜딩 프로젝트 진행중" },
-  { id: "cli-02", company: "B공익재단", contact_name: "박재원", contact_email: "jw@bfound.or.kr", contact_phone: "02-2222-3333", grade: "VIP", industry: "비영리/공공", total_revenue: 38000000, project_count: 1, last_contact_date: "2025-02-28", memo: "정산완료, 추가 프로젝트 논의" },
-  { id: "cli-03", company: "(주)씨테크", contact_name: "이동현", contact_email: "dh@ctech.kr", contact_phone: "02-4444-5555", grade: "일반", industry: "IT/소프트웨어", total_revenue: 0, project_count: 1, last_contact_date: "2025-03-05", memo: "모바일앱 계약완료" },
-  { id: "cli-04", company: "(주)디포커스", contact_name: "최서윤", contact_email: "sy@dfocus.kr", contact_phone: "02-6666-7777", grade: "일반", industry: "마케팅", total_revenue: 9600000, project_count: 1, last_contact_date: "2025-03-12", memo: "대시보드 프로젝트 진행중" },
-  { id: "cli-05", company: "E공공기관", contact_name: "정민호", contact_email: "mh@egov.go.kr", contact_phone: "02-8888-0000", grade: "VIP", industry: "공공기관", total_revenue: 55000000, project_count: 1, last_contact_date: "2025-01-06", memo: "디자인시스템 정산완료" },
-  { id: "cli-06", company: "그린에너지", contact_name: "정유진", contact_email: "yj@green.kr", contact_phone: "031-7777-8888", grade: "잠재", industry: "에너지", total_revenue: 0, project_count: 0, last_contact_date: "2025-03-11", memo: "ESG 시스템 상담중" },
-  { id: "cli-07", company: "에듀플러스", contact_name: "오수빈", contact_email: "sb@edu.com", contact_phone: "02-1111-2222", grade: "잠재", industry: "교육", total_revenue: 0, project_count: 0, last_contact_date: "2025-03-09", memo: "LMS 견적 발송" },
+  { id: "cli-01", company: "(주)에이컴퍼니", contact_name: "김지현", contact_email: "jh@acompany.kr", contact_phone: "02-1234-5678", grade: "VIP", client_status: "고객사", industry: "IT/소프트웨어", total_revenue: 25000000, project_count: 1, last_contact_date: "2025-03-10", memo: "브랜딩 프로젝트 진행중", source_request_ids: [], contract_ids: ["proj-1"], inquiry_history: [] },
+  { id: "cli-02", company: "B공익재단", contact_name: "박재원", contact_email: "jw@bfound.or.kr", contact_phone: "02-2222-3333", grade: "VIP", client_status: "고객사", industry: "비영리/공공", total_revenue: 38000000, project_count: 1, last_contact_date: "2025-02-28", memo: "정산완료, 추가 프로젝트 논의", source_request_ids: [], contract_ids: ["proj-2"], inquiry_history: [] },
+  { id: "cli-03", company: "(주)씨테크", contact_name: "이동현", contact_email: "dh@ctech.kr", contact_phone: "02-4444-5555", grade: "일반", client_status: "고객사", industry: "IT/소프트웨어", total_revenue: 0, project_count: 1, last_contact_date: "2025-03-05", memo: "모바일앱 계약완료", source_request_ids: [], contract_ids: ["proj-3"], inquiry_history: [] },
+  { id: "cli-04", company: "(주)디포커스", contact_name: "최서윤", contact_email: "sy@dfocus.kr", contact_phone: "02-6666-7777", grade: "일반", client_status: "고객사", industry: "마케팅", total_revenue: 9600000, project_count: 1, last_contact_date: "2025-03-12", memo: "대시보드 프로젝트 진행중", source_request_ids: [], contract_ids: ["proj-4"], inquiry_history: [] },
+  { id: "cli-05", company: "E공공기관", contact_name: "정민호", contact_email: "mh@egov.go.kr", contact_phone: "02-8888-0000", grade: "VIP", client_status: "고객사", industry: "공공기관", total_revenue: 55000000, project_count: 1, last_contact_date: "2025-01-06", memo: "디자인시스템 정산완료", source_request_ids: [], contract_ids: [], inquiry_history: [] },
+  { id: "cli-06", company: "그린에너지", contact_name: "정유진", contact_email: "yj@green.kr", contact_phone: "031-7777-8888", grade: "잠재", client_status: "잠재고객", industry: "에너지", total_revenue: 0, project_count: 0, last_contact_date: "2025-03-11", memo: "ESG 시스템 상담중", source_request_ids: ["req-01"], contract_ids: [], inquiry_history: [{ id: "inq-01", date: "2025-03-11", type: "웹사이트", channel: "나라장터", summary: "ESG 보고서 시스템 구축 문의", status: "견적서", linked_request_id: "req-01" }] },
+  { id: "cli-07", company: "에듀플러스", contact_name: "오수빈", contact_email: "sb@edu.com", contact_phone: "02-1111-2222", grade: "잠재", client_status: "잠재고객", industry: "교육", total_revenue: 0, project_count: 0, last_contact_date: "2025-03-09", memo: "LMS 견적 발송", source_request_ids: ["req-02"], contract_ids: [], inquiry_history: [{ id: "inq-02", date: "2025-03-05", type: "웹사이트", channel: "소개", summary: "LMS 플랫폼 개발 문의", status: "계약", linked_request_id: "req-02" }] },
 ];
 
 // ── 견적서 ──

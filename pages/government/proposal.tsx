@@ -173,7 +173,6 @@ export default function ProposalPage() {
     size: string;
     analyzedAt: string | null;
     fullContent: string | null;
-    summary: string | null;
   }
   const [refDocs, setRefDocs] = useState<RefDocument[]>([]);
   const [analyzingRef, setAnalyzingRef] = useState<string | null>(null);
@@ -205,9 +204,23 @@ export default function ProposalPage() {
   const [plan, setPlan] = useState<GeneratedSection[]>([]);
   const [generating, setGenerating] = useState(false);
   const [generateError, setGenerateError] = useState<string | null>(null);
+  const [generatingProgress, setGeneratingProgress] = useState<{ current: number; total: number; sectionTitle: string } | null>(null);
   const [openSections, setOpenSections] = useState<Set<string>>(new Set());
   const [editingSection, setEditingSection] = useState<string | null>(null);
   const [editContent, setEditContent] = useState("");
+  const cancelRef = useRef(false);
+  const [regeneratingSection, setRegeneratingSection] = useState<string | null>(null);
+
+  // 버전 관리
+  interface PlanVersion {
+    id: string;
+    label: string;
+    createdAt: string;
+    sectionCount: number;
+    sections: GeneratedSection[];
+  }
+  const [planVersions, setPlanVersions] = useState<PlanVersion[]>([]);
+  const [activeVersionId, setActiveVersionId] = useState<string | null>(null);
 
   // 임시저장
   const [saveMessage, setSaveMessage] = useState<string | null>(null);
@@ -484,7 +497,6 @@ export default function ProposalPage() {
         size: formatFileSize(file.size),
         analyzedAt: null,
         fullContent: null,
-        summary: null,
       }]);
     }
     e.target.value = "";
@@ -514,7 +526,6 @@ export default function ProposalPage() {
           ...d,
           analyzedAt: new Date().toISOString().split("T")[0],
           fullContent: json.data.fullContent || null,
-          summary: json.data.summary || null,
         } : d
       ));
     } catch (err) {
@@ -663,42 +674,136 @@ export default function ProposalPage() {
     }
   };
 
+  const callGenerateSection = async (
+    section: typeof template[0],
+    allSecs: { number: string; title: string }[],
+    prevResults: GeneratedSection[],
+    refContents: { fullContent: string | null }[],
+    bpContents: Record<string, unknown>[],
+  ): Promise<GeneratedSection> => {
+    const fd = new FormData();
+    fd.append("company", JSON.stringify(company));
+    fd.append("urlMeta", JSON.stringify(urlMeta));
+    fd.append("businessIdea", businessIdea);
+    fd.append("refDocsContents", JSON.stringify(refContents));
+    fd.append("bestPracticeContents", JSON.stringify(bpContents));
+    fd.append("currentSection", JSON.stringify(section));
+    fd.append("allSections", JSON.stringify(allSecs));
+    fd.append("previousSections", JSON.stringify(prevResults.map(r => ({ number: r.number, title: r.title, content: r.content }))));
+    appendFilesToFormData(fd);
+
+    const res = await fetch("/api/generate-plan", { method: "POST", body: fd });
+    const contentType = res.headers.get("content-type") || "";
+    if (!contentType.includes("application/json")) {
+      throw new Error(`서버 오류 (${res.status})`);
+    }
+    const json = await res.json();
+    if (!res.ok || !json.success) throw new Error(json.error || "생성 실패");
+    return {
+      number: json.data.number || section.number,
+      title: json.data.title || section.title,
+      content: json.data.content || "",
+    };
+  };
+
+  const saveVersion = (sections: GeneratedSection[]) => {
+    const versionNum = planVersions.length + 1;
+    const newVersion: PlanVersion = {
+      id: "v-" + Date.now(),
+      label: `v${versionNum}`,
+      createdAt: new Date().toLocaleString("ko-KR"),
+      sectionCount: sections.length,
+      sections: JSON.parse(JSON.stringify(sections)),
+    };
+    setPlanVersions(prev => [newVersion, ...prev]);
+    setActiveVersionId(newVersion.id);
+  };
+
+  const loadVersion = (versionId: string) => {
+    const version = planVersions.find(v => v.id === versionId);
+    if (version) {
+      setPlan(JSON.parse(JSON.stringify(version.sections)));
+      setActiveVersionId(versionId);
+      setOpenSections(new Set());
+    }
+  };
+
   const generatePlan = async () => {
+    cancelRef.current = false;
     setGenerating(true);
     setGenerateError(null);
-    try {
-      const refContents = refDocs.filter(d => d.fullContent).map(d => ({
-        summary: d.summary,
-        fullContent: d.fullContent,
-      }));
-      const bpContents = bestPractices.filter(d => d.fullContent).map(d => ({
-        fullContent: d.fullContent,
-        ...(d.analysis || {}),
-      }));
+    setPlan([]);
+    setGeneratingProgress(null);
 
-      const fd = new FormData();
-      fd.append("company", JSON.stringify(company));
-      fd.append("urlMeta", JSON.stringify(urlMeta));
-      fd.append("template", JSON.stringify(template));
-      fd.append("businessIdea", businessIdea);
-      fd.append("refDocsContents", JSON.stringify(refContents));
-      fd.append("bestPracticeContents", JSON.stringify(bpContents));
-      appendFilesToFormData(fd);
+    const refContents = refDocs.filter(d => d.fullContent).map(d => ({
+      fullContent: d.fullContent,
+    }));
+    const bpContents = bestPractices.filter(d => d.fullContent).map(d => ({
+      fullContent: d.fullContent,
+      ...(d.analysis || {}),
+    }));
 
-      const res = await fetch("/api/generate-plan", { method: "POST", body: fd });
-      const contentType = res.headers.get("content-type") || "";
-      if (!contentType.includes("application/json")) {
-        throw new Error(`서버 오류 (${res.status}). 개발 서버를 재시작해주세요.`);
+    const allSecs = template.map(t => ({ number: t.number, title: t.title }));
+    const results: GeneratedSection[] = [];
+
+    for (let i = 0; i < template.length; i++) {
+      if (cancelRef.current) break;
+
+      const section = template[i];
+      setGeneratingProgress({ current: i + 1, total: template.length, sectionTitle: `${section.number}. ${section.title}` });
+
+      try {
+        const generated = await callGenerateSection(section, allSecs, results, refContents, bpContents);
+        if (cancelRef.current) break;
+        results.push(generated);
+        setPlan([...results]);
+        setOpenSections(prev => new Set([...prev, generated.number]));
+      } catch (err) {
+        const msg = err instanceof Error ? err.message : "알 수 없는 오류";
+        results.push({
+          number: section.number,
+          title: section.title,
+          content: `⚠️ 이 섹션 생성에 실패했습니다: ${msg}\n\n섹션 재생성 버튼을 눌러 다시 시도해주세요.`,
+        });
+        setPlan([...results]);
       }
-      const json = await res.json();
-      if (!res.ok || !json.success) throw new Error(json.error || "생성 실패");
-      setPlan(json.data);
-      setOpenSections(new Set(["1"]));
+    }
+
+    if (results.length > 0) {
+      saveVersion(results);
+    }
+
+    setGeneratingProgress(null);
+    setGenerating(false);
+    cancelRef.current = false;
+  };
+
+  const cancelGeneration = () => {
+    cancelRef.current = true;
+  };
+
+  const regenerateSection = async (sectionNumber: string) => {
+    const sectionTemplate = template.find(t => t.number === sectionNumber);
+    if (!sectionTemplate) return;
+
+    setRegeneratingSection(sectionNumber);
+    const refContents = refDocs.filter(d => d.fullContent).map(d => ({ fullContent: d.fullContent }));
+    const bpContents = bestPractices.filter(d => d.fullContent).map(d => ({ fullContent: d.fullContent, ...(d.analysis || {}) }));
+    const allSecs = template.map(t => ({ number: t.number, title: t.title }));
+    const prevResults = plan.filter(p => {
+      const pIdx = template.findIndex(t => t.number === p.number);
+      const curIdx = template.findIndex(t => t.number === sectionNumber);
+      return pIdx < curIdx;
+    });
+
+    try {
+      const generated = await callGenerateSection(sectionTemplate, allSecs, prevResults, refContents, bpContents);
+      setPlan(prev => prev.map(sec => sec.number === sectionNumber ? generated : sec));
     } catch (err) {
       const msg = err instanceof Error ? err.message : "알 수 없는 오류";
-      setGenerateError(msg);
+      setGenerateError(`섹션 ${sectionNumber} 재생성 실패: ${msg}`);
     } finally {
-      setGenerating(false);
+      setRegeneratingSection(null);
     }
   };
 
@@ -1516,20 +1621,11 @@ export default function ProposalPage() {
                           <button className={g.fileRemoveBtn} onClick={() => removeRefDoc(doc.id)}>✕</button>
                         </div>
                       </div>
-                      {doc.summary && (
-                        <div className={g.refDocSummary}>
-                          <div className={g.refDocSummaryTitle}>AI 분석 요약</div>
-                          <div className={g.refDocSummaryContent}>
-                            {doc.summary.split("\n").map((line, i) => (
-                              <div key={i} className={g.refDocSummaryLine}>
-                                {line.includes(":") ? (
-                                  <>
-                                    <span className={g.refDocSummaryLabel}>{line.split(":")[0]}:</span>
-                                    {line.split(":").slice(1).join(":")}
-                                  </>
-                                ) : line}
-                              </div>
-                            ))}
+                      {doc.fullContent && (
+                        <div className={g.refDocFullContent}>
+                          <div className={g.refDocFullContentTitle}>추출된 전체 내용</div>
+                          <div className={g.refDocFullContentBody}>
+                            <pre style={{ whiteSpace: "pre-wrap", wordBreak: "break-word", fontSize: 12, lineHeight: 1.6, margin: 0, maxHeight: 400, overflow: "auto" }}>{doc.fullContent}</pre>
                           </div>
                         </div>
                       )}
@@ -1680,6 +1776,60 @@ export default function ProposalPage() {
               사업 아이디어를 바탕으로 {template.length > 0 ? `${template.length}개 섹션` : "사업계획서 양식"}에 맞춰 초안을 생성합니다.
             </div>
 
+            {/* 버전 관리 리스트 */}
+            {planVersions.length > 0 && (
+              <div style={{ marginBottom: 16, border: "1px solid var(--color-border)", borderRadius: 6, overflow: "hidden" }}>
+                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "8px 12px", background: "var(--color-bg)", borderBottom: "1px solid var(--color-border)" }}>
+                  <div style={{ fontSize: 12, fontWeight: 600 }}>생성 이력 ({planVersions.length}건)</div>
+                </div>
+                <div style={{ maxHeight: 160, overflow: "auto" }}>
+                  <table style={{ width: "100%", fontSize: 12, borderCollapse: "collapse" }}>
+                    <thead>
+                      <tr style={{ background: "var(--color-bg)", borderBottom: "1px solid var(--color-border)" }}>
+                        <th style={{ padding: "4px 12px", textAlign: "left", fontWeight: 600 }}>버전</th>
+                        <th style={{ padding: "4px 12px", textAlign: "left", fontWeight: 600 }}>생성일시</th>
+                        <th style={{ padding: "4px 12px", textAlign: "center", fontWeight: 600 }}>섹션</th>
+                        <th style={{ padding: "4px 12px", textAlign: "center", fontWeight: 600 }}>작업</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {planVersions.map((ver) => (
+                        <tr
+                          key={ver.id}
+                          style={{
+                            borderBottom: "1px solid var(--color-border)",
+                            background: activeVersionId === ver.id ? "var(--color-primary-light, #e8f0fe)" : "transparent",
+                            cursor: "pointer",
+                          }}
+                          onClick={() => loadVersion(ver.id)}
+                        >
+                          <td style={{ padding: "5px 12px" }}>
+                            <span style={{ fontWeight: 600, color: activeVersionId === ver.id ? "var(--color-primary)" : "inherit" }}>
+                              {ver.label}
+                            </span>
+                            {activeVersionId === ver.id && (
+                              <span style={{ fontSize: 10, marginLeft: 6, color: "var(--color-primary)", fontWeight: 600 }}>현재</span>
+                            )}
+                          </td>
+                          <td style={{ padding: "5px 12px", color: "var(--color-text-secondary)" }}>{ver.createdAt}</td>
+                          <td style={{ padding: "5px 12px", textAlign: "center" }}>{ver.sectionCount}개</td>
+                          <td style={{ padding: "5px 12px", textAlign: "center" }}>
+                            <button
+                              className={`${s.btn} ${s.btnSmall}`}
+                              style={{ fontSize: 10, padding: "1px 6px" }}
+                              onClick={(e) => { e.stopPropagation(); loadVersion(ver.id); }}
+                            >
+                              불러오기
+                            </button>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            )}
+
             {plan.length === 0 && !generating && !generateError && (
               <div style={{ textAlign: "center", padding: "24px 0" }}>
                 <button className={`${s.btn} ${s.btnPrimary}`} onClick={generatePlan} style={{ padding: "10px 32px", fontSize: 14 }}>
@@ -1696,40 +1846,83 @@ export default function ProposalPage() {
             {generating && (
               <div className={g.aiLoading}>
                 <div className={g.aiLoadingSpinner} />
-                <div className={g.aiLoadingText}>AI가 사업계획서를 작성하고 있습니다...</div>
-                <div className={g.aiLoadingHint}>기업정보 + 공고분석 + 양식구조 + 참고자료 → 맞춤형 사업계획서 생성</div>
+                <div className={g.aiLoadingText}>
+                  {generatingProgress
+                    ? `섹션 ${generatingProgress.current} / ${generatingProgress.total} 작성 중...`
+                    : "AI가 사업계획서를 준비하고 있습니다..."}
+                </div>
+                {generatingProgress && (
+                  <>
+                    <div style={{ fontSize: 13, fontWeight: 600, color: "var(--color-primary)", marginTop: 4 }}>
+                      {generatingProgress.sectionTitle}
+                    </div>
+                    <div style={{ width: "100%", maxWidth: 400, height: 6, background: "var(--color-border)", borderRadius: 3, marginTop: 10 }}>
+                      <div style={{
+                        width: `${(generatingProgress.current / generatingProgress.total) * 100}%`,
+                        height: "100%",
+                        background: "var(--color-primary)",
+                        borderRadius: 3,
+                        transition: "width 0.3s ease",
+                      }} />
+                    </div>
+                  </>
+                )}
+                <div style={{ fontSize: 11, color: "var(--color-text-tertiary)", marginTop: 6 }}>
+                  gemini-3.1-pro-preview | 섹션별 개별 생성 (섹션당 최대 토큰 집중 사용)
+                </div>
+                <button
+                  className={`${s.btn} ${s.btnSmall}`}
+                  style={{ marginTop: 12, color: "var(--color-danger, #e53e3e)" }}
+                  onClick={cancelGeneration}
+                >
+                  생성 취소
+                </button>
               </div>
             )}
 
             {generateError && !generating && (
               <div className={g.warningBox}>
-                <h4>사업계획서 생성 실패</h4>
+                <h4>사업계획서 생성 오류</h4>
                 <div className={`${g.eligibilityItem} ${g.warnItem}`}>{generateError}</div>
                 <button
                   className={`${s.btn} ${s.btnPrimary} ${s.btnSmall}`}
                   style={{ marginTop: 10 }}
-                  onClick={() => { setGenerateError(null); generatePlan(); }}
+                  onClick={() => { setGenerateError(null); }}
                 >
-                  다시 시도
+                  확인
                 </button>
               </div>
             )}
 
             {plan.length > 0 && (
               <>
-                <div style={{ display: "flex", justifyContent: "flex-end", gap: 6, marginBottom: 12 }}>
-                  <button
-                    className={`${s.btn} ${s.btnSmall}`}
-                    onClick={() => setOpenSections(new Set(plan.map((p) => p.number)))}
-                  >
-                    전체 펼치기
-                  </button>
-                  <button
-                    className={`${s.btn} ${s.btnSmall}`}
-                    onClick={() => setOpenSections(new Set())}
-                  >
-                    전체 접기
-                  </button>
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 6, marginBottom: 12 }}>
+                  <div style={{ fontSize: 12, color: "var(--color-text-secondary)" }}>
+                    {activeVersionId && planVersions.find(v => v.id === activeVersionId)
+                      ? `${planVersions.find(v => v.id === activeVersionId)!.label} | ${plan.length}개 섹션`
+                      : `${plan.length}개 섹션`}
+                  </div>
+                  <div style={{ display: "flex", gap: 6 }}>
+                    <button
+                      className={`${s.btn} ${s.btnPrimary} ${s.btnSmall}`}
+                      onClick={() => { setGenerateError(null); generatePlan(); }}
+                      disabled={generating || regeneratingSection !== null}
+                    >
+                      전체 재생성
+                    </button>
+                    <button
+                      className={`${s.btn} ${s.btnSmall}`}
+                      onClick={() => setOpenSections(new Set(plan.map((p) => p.number)))}
+                    >
+                      전체 펼치기
+                    </button>
+                    <button
+                      className={`${s.btn} ${s.btnSmall}`}
+                      onClick={() => setOpenSections(new Set())}
+                    >
+                      전체 접기
+                    </button>
+                  </div>
                 </div>
 
                 <div className={g.planSections}>
@@ -1741,14 +1934,29 @@ export default function ProposalPage() {
                           {sec.title}
                         </div>
                         <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-                          {openSections.has(sec.number) && editingSection !== sec.number && (
-                            <button
-                              className={`${s.btn} ${s.btnSmall}`}
-                              onClick={(e) => { e.stopPropagation(); setEditingSection(sec.number); setEditContent(sec.content); }}
-                              style={{ fontSize: 11, padding: "2px 8px" }}
-                            >
-                              수정
-                            </button>
+                          {regeneratingSection === sec.number && (
+                            <span style={{ fontSize: 11, color: "var(--color-primary)" }}>
+                              <span className={g.miniSpinner} /> 재생성중...
+                            </span>
+                          )}
+                          {openSections.has(sec.number) && editingSection !== sec.number && regeneratingSection !== sec.number && (
+                            <>
+                              <button
+                                className={`${s.btn} ${s.btnSmall}`}
+                                onClick={(e) => { e.stopPropagation(); regenerateSection(sec.number); }}
+                                style={{ fontSize: 10, padding: "2px 6px", color: "var(--color-primary)" }}
+                                disabled={generating || regeneratingSection !== null}
+                              >
+                                섹션 재생성
+                              </button>
+                              <button
+                                className={`${s.btn} ${s.btnSmall}`}
+                                onClick={(e) => { e.stopPropagation(); setEditingSection(sec.number); setEditContent(sec.content); }}
+                                style={{ fontSize: 10, padding: "2px 6px" }}
+                              >
+                                수정
+                              </button>
+                            </>
                           )}
                           <span className={`${g.planSectionToggle} ${openSections.has(sec.number) ? g.planSectionToggleOpen : ""}`}>
                             ▼
@@ -1834,10 +2042,13 @@ export default function ProposalPage() {
                   <button
                     className={`${s.btn} ${s.btnPrimary} ${s.btnSmall}`}
                     style={{ marginLeft: "auto" }}
-                    onClick={() => { setPlan([]); setGenerateError(null); generatePlan(); }}
-                    disabled={generating}
+                    onClick={() => {
+                      saveDraft();
+                      setSaveMessage("최종 저장 완료 (" + new Date().toLocaleTimeString("ko-KR") + ")");
+                      setTimeout(() => setSaveMessage(null), 3000);
+                    }}
                   >
-                    재생성
+                    최종 저장하기
                   </button>
                 </div>
               </>

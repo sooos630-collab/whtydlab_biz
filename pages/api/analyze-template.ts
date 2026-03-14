@@ -5,7 +5,7 @@ import fs from "fs";
 export const config = { api: { bodyParser: false } };
 
 const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
-const GEMINI_URL = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${GEMINI_API_KEY}`;
+const GEMINI_URL = `https://generativelanguage.googleapis.com/v1beta/models/gemini-3.1-flash-lite-preview:generateContent?key=${GEMINI_API_KEY}`;
 
 const MAX_INLINE_SIZE = 20 * 1024 * 1024; // 20MB Gemini inline limit
 
