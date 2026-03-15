@@ -272,11 +272,8 @@ function CashPulseSection({
       <SectionEyebrow label="AI 자금 운영" guideHref="/finance/fixed" />
 
       <div className={s.cashSectionHeader}>
-        <h2 className={s.sectionHeadline}>
+        <p className={s.cashLead} style={{ maxWidth: "100%" }}>
           {summaryText}
-        </h2>
-        <p className={s.cashLead}>
-          {helperText}
         </p>
       </div>
 
@@ -284,7 +281,6 @@ function CashPulseSection({
         <div className={s.cashStatCard}>
           <span className={s.cashStatLabel}>가용 현금</span>
           <strong className={s.cashStatValue}>{formatCurrency(Math.max(availableCash, 0))}</strong>
-          <span className={s.cashStatMeta}>실제 통장 잔액을 직접 입력하면 이 값을 기준으로 계산한다</span>
           <div className={s.cashInputRow}>
             <input
               className={s.cashInput}
@@ -301,36 +297,31 @@ function CashPulseSection({
           </div>
           <span className={s.cashInputState}>
             {hasUnsavedCashBalance
-              ? "입력한 잔액이 아직 저장되지 않았어요"
+              ? "미저장"
               : hasSavedCashBalance
-                ? "저장된 통장 잔액 기준으로 계산 중"
-                : "저장된 잔액이 없어 추정 가용 현금 기준으로 계산 중"}
+                ? "저장된 잔액 기준"
+                : "추정 가용 현금 기준"}
           </span>
         </div>
         <div className={s.cashStatCard}>
           <span className={s.cashStatLabel}>월 운영고정비</span>
           <strong className={s.cashStatValue}>{formatCurrency(monthlyFixedBurn)}</strong>
-          <span className={s.cashStatMeta}>임대료, 구독, 보험, 식대 등 월 기준 환산 고정비</span>
         </div>
         <div className={s.cashStatCard}>
           <span className={s.cashStatLabel}>월 인건비</span>
           <strong className={s.cashStatValue}>{formatCurrency(monthlyPayrollBurn)}</strong>
-          <span className={s.cashStatMeta}>최근 급여 기록 기준으로 보는 월 인건비 러닝비</span>
         </div>
         <div className={s.cashStatCard}>
           <span className={s.cashStatLabel}>추가 예정 지출</span>
           <strong className={s.cashStatValue}>{formatCurrency(scheduledExpenseTotal)}</strong>
-          <span className={s.cashStatMeta}>연간 결제, 수취 세금계산서, 정산 예정분 등 올해 남은 추가 지출</span>
         </div>
         <div className={s.cashStatCard}>
           <span className={s.cashStatLabel}>연간 목표까지</span>
           <strong className={s.cashStatValue}>{formatCurrency(Math.max(annualTargetGap, 0))}</strong>
-          <span className={s.cashStatMeta}>현재 실수금 기준 남은 목표액</span>
         </div>
         <div className={s.cashStatCard}>
-          <span className={s.cashStatLabel}>지금 자금으로 버티는 기간</span>
+          <span className={s.cashStatLabel}>버티는 기간</span>
           <strong className={s.cashStatValue}>{formatMonthCount(Math.max(runwayMonths, 0))}</strong>
-          <span className={s.cashStatMeta}>추가 수금이 없다고 가정한 버팀 구간</span>
         </div>
       </div>
 
@@ -345,26 +336,21 @@ function CashPulseSection({
                 </span>
               ))
             ) : (
-              <span className={s.riskBadge}>당장 위험 구간 없음</span>
+              <span className={s.riskBadge}>위험 구간 없음</span>
             )}
           </div>
-          <p className={s.cashInsightText}>
-            월 고정비와 인건비, 예정 추가 지출보다 예정 수금이 얇은 기간이다. 신규 계약금이나 선발행 수금이 없으면 이 구간에서 체감 압박이 커진다.
-          </p>
         </div>
 
         <div className={s.cashInsightCard}>
           <div className={s.cashInsightTitle}>다음 현금 유입</div>
           <p className={s.cashInsightText}>{nextCashEvent}</p>
-          <p className={s.cashInsightMeta}>프로젝트 관리 목록의 미수금 일정 기준</p>
         </div>
 
         <div className={s.cashInsightCard}>
           <div className={s.cashInsightTitle}>운영 코멘트</div>
           <p className={s.cashInsightText}>
-            미발행 세금계산서 {formatCurrency(blockedInvoiceAmount)}는 바로 회수 가능한 후보 금액이다. 지금 추세라면 연말 예상 잔액은 {formatCurrency(Math.max(projectedYearEndReserve, 0))} 수준으로 보고, 추가 지출은 미리 현금에서 따로 떼어 두는 편이 안전하다.
+            미발행 세금계산서 {formatCurrency(blockedInvoiceAmount)} 회수 가능. 연말 예상 잔액 {formatCurrency(Math.max(projectedYearEndReserve, 0))}.
           </p>
-          <p className={s.cashInsightMeta}>프로젝트 수금 + 비용 런레이트 기반 추정</p>
         </div>
       </div>
     </section>

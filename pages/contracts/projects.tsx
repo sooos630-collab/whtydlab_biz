@@ -154,7 +154,7 @@ const rateColor = (rate: number) => rate >= 50 ? "var(--color-success)" : rate >
 
 /* ── 컬럼 정의 ── */
 type ColKey =
-  | "code" | "client" | "desc" | "channel" | "invoice"
+  | "code" | "client" | "desc" | "progress_stage" | "channel" | "invoice"
   | "start" | "end"
   | "supply" | "vat" | "total"
   | "bill_init" | "bill_mid" | "bill_final"
@@ -166,13 +166,14 @@ type ColKey =
 interface ColDef {
   key: ColKey;
   label: string;
-  group: "기본정보" | "기간" | "금액" | "청구" | "수금" | "수금현황" | "수익" | "인원";
+  group: "기본정보" | "기간" | "금액" | "정산 비율" | "수금" | "수금현황" | "수익" | "인원";
 }
 
 const ALL_COLUMNS: ColDef[] = [
   { key: "code", label: "코드넘버", group: "기본정보" },
   { key: "client", label: "회사명", group: "기본정보" },
   { key: "desc", label: "세부내역", group: "기본정보" },
+  { key: "progress_stage", label: "진척도", group: "기본정보" },
   { key: "channel", label: "수주경로", group: "기본정보" },
   { key: "invoice", label: "세금계산서", group: "기본정보" },
   { key: "start", label: "시작", group: "기간" },
@@ -180,9 +181,9 @@ const ALL_COLUMNS: ColDef[] = [
   { key: "supply", label: "공급가액", group: "금액" },
   { key: "vat", label: "부가세", group: "금액" },
   { key: "total", label: "총금액", group: "금액" },
-  { key: "bill_init", label: "착수금", group: "청구" },
-  { key: "bill_mid", label: "중도금", group: "청구" },
-  { key: "bill_final", label: "잔금", group: "청구" },
+  { key: "bill_init", label: "착수금", group: "정산 비율" },
+  { key: "bill_mid", label: "중도금", group: "정산 비율" },
+  { key: "bill_final", label: "잔금", group: "정산 비율" },
   { key: "coll_init", label: "착수금", group: "수금" },
   { key: "coll_mid", label: "중도금", group: "수금" },
   { key: "coll_final", label: "잔금", group: "수금" },
@@ -195,18 +196,28 @@ const ALL_COLUMNS: ColDef[] = [
   { key: "members", label: "투입인원", group: "인원" },
 ];
 
+const progressStageBadge = (stage: string) => {
+  switch (stage) {
+    case "시작전": return s.badgeGray;
+    case "진행중": return s.badgeBlue;
+    case "홀딩": return s.badgeOrange;
+    case "완료": return s.badgeGreen;
+    default: return s.badgeGray;
+  }
+};
+
 const PRESETS: Record<string, { label: string; cols: ColKey[] }> = {
   basic: {
     label: "기본",
-    cols: ["code", "client", "desc", "channel", "start", "end", "total", "collected", "remaining", "coll_rate", "members"],
+    cols: ["code", "client", "desc", "progress_stage", "channel", "start", "end", "total", "collected", "remaining", "coll_rate", "members"],
   },
   amount: {
     label: "금액상세",
-    cols: ["code", "client", "start", "end", "supply", "vat", "total", "bill_init", "bill_mid", "bill_final", "coll_init", "coll_mid", "coll_final", "collected", "remaining", "coll_rate"],
+    cols: ["code", "client", "progress_stage", "start", "end", "supply", "vat", "total", "bill_init", "bill_mid", "bill_final", "coll_init", "coll_mid", "coll_final", "collected", "remaining", "coll_rate"],
   },
   profit: {
     label: "수익분석",
-    cols: ["code", "client", "total", "collected", "remaining", "coll_rate", "input_cost", "profit_rate", "net_profit", "members"],
+    cols: ["code", "client", "progress_stage", "total", "collected", "remaining", "coll_rate", "input_cost", "profit_rate", "net_profit", "members"],
   },
   all: {
     label: "전체",
@@ -267,11 +278,11 @@ export default function ProjectContractsPage() {
   }, [colPickerOpen]);
 
   /* ── 그룹 헤더 colspan 계산 ── */
-  const groupOrder = ["기본정보", "기간", "금액", "청구", "수금", "수금현황", "수익", "인원"] as const;
+  const groupOrder = ["기본정보", "기간", "금액", "정산 비율", "수금", "수금현황", "수익", "인원"] as const;
   const groupSpans = useMemo(() => {
     const spans: { group: string; span: number; cls?: string }[] = [];
     const groupClsMap: Record<string, string | undefined> = {
-      "청구": s.projGroupBilling,
+      "정산 비율": s.projGroupBilling,
       "수금": s.projGroupCollect,
       "수금현황": s.projGroupStatus,
       "수익": s.projGroupProfit,
@@ -366,7 +377,7 @@ export default function ProjectContractsPage() {
   const filteredProfitRate = filteredTotalAmount > 0 ? (filteredTotalProfit / filteredTotalAmount * 100).toFixed(1) : "-";
 
   /* 합계행에서 기본정보+기간 영역의 빈 colspan 계산 */
-  const infoGroupKeys: ColKey[] = ["code", "client", "desc", "channel", "invoice", "start", "end"];
+  const infoGroupKeys: ColKey[] = ["code", "client", "desc", "progress_stage", "channel", "invoice", "start", "end"];
   const infoVisibleCount = infoGroupKeys.filter((k) => visibleCols.has(k)).length;
 
   /* ── 월말결산 연동 ── */
@@ -534,6 +545,7 @@ export default function ProjectContractsPage() {
                   {show("code") && <ProjTH k="contract_number">코드넘버</ProjTH>}
                   {show("client") && <th>회사명</th>}
                   {show("desc") && <th>세부내역</th>}
+                  {show("progress_stage") && <th>진척도</th>}
                   {show("channel") && <th>수주경로</th>}
                   {show("invoice") && <th className={s.projThCenter}>세금계산서</th>}
                   {show("start") && <ProjTH k="start_date">시작</ProjTH>}
@@ -562,6 +574,7 @@ export default function ProjectContractsPage() {
                     {show("code") && <td className={s.projCode}>{p.contract_number}</td>}
                     {show("client") && <td className={s.projClient}>{p.client}</td>}
                     {show("desc") && <td className={s.projDesc}>{p.description}</td>}
+                    {show("progress_stage") && <td><span className={`${s.badge} ${progressStageBadge(p.progress_stage)}`}>{p.progress_stage}</span></td>}
                     {show("channel") && <td><span className={`${s.badge} ${channelBadge(p.acquisition_channel)}`}>{p.acquisition_channel}</span></td>}
                     {show("invoice") && <td className={s.projInvoiceCell}>{p.invoice_issued ? <span className={s.projInvoiceYes}>발행</span> : <span className={s.projInvoiceNo}>미발행</span>}</td>}
                     {show("start") && <td className={s.projDate}>{p.start_date}</td>}
@@ -569,9 +582,9 @@ export default function ProjectContractsPage() {
                     {show("supply") && <td className={s.projAmountBold}>{fmtNum(p.supply_amount)}</td>}
                     {show("vat") && <td className={s.projAmount}>{fmtNum(p.vat_amount)}</td>}
                     {show("total") && <td className={s.projAmountPrimary}>{fmtNum(p.total_amount_num)}</td>}
-                    {show("bill_init") && <td className={s.projAmountBilling}>{fmtNum(p.billing_initial)}</td>}
-                    {show("bill_mid") && <td className={s.projAmountBilling}>{fmtNum(p.billing_interim)}</td>}
-                    {show("bill_final") && <td className={s.projAmountBilling}>{fmtNum(p.billing_final)}</td>}
+                    {show("bill_init") && <td className={s.projAmountBilling}>{p.billing_initial}%</td>}
+                    {show("bill_mid") && <td className={s.projAmountBilling}>{p.billing_interim}%</td>}
+                    {show("bill_final") && <td className={s.projAmountBilling}>{p.billing_final}%</td>}
                     {show("coll_init") && <td className={s.projAmountCollected}>{p.collected_initial > 0 ? fmtNum(p.collected_initial) : "-"}</td>}
                     {show("coll_mid") && <td className={s.projAmountCollected}>{p.collected_interim > 0 ? fmtNum(p.collected_interim) : "-"}</td>}
                     {show("coll_final") && <td className={s.projAmountCollected}>{p.collected_final > 0 ? fmtNum(p.collected_final) : "-"}</td>}
@@ -595,9 +608,9 @@ export default function ProjectContractsPage() {
                     {show("supply") && <td className={s.projAmountBold}>{fmtNum(filteredTotalSupply)}</td>}
                     {show("vat") && <td className={s.projAmount}>{fmtNum(filteredTotalVat)}</td>}
                     {show("total") && <td className={s.projAmountPrimary}>{fmtNum(filteredTotalAmount)}</td>}
-                    {show("bill_init") && <td className={s.projAmountBilling}>{fmtNum(projFiltered.reduce((a, p) => a + p.billing_initial, 0))}</td>}
-                    {show("bill_mid") && <td className={s.projAmountBilling}>{fmtNum(projFiltered.reduce((a, p) => a + p.billing_interim, 0))}</td>}
-                    {show("bill_final") && <td className={s.projAmountBilling}>{fmtNum(projFiltered.reduce((a, p) => a + p.billing_final, 0))}</td>}
+                    {show("bill_init") && <td className={s.projAmountBilling}>-</td>}
+                    {show("bill_mid") && <td className={s.projAmountBilling}>-</td>}
+                    {show("bill_final") && <td className={s.projAmountBilling}>-</td>}
                     {show("coll_init") && <td className={s.projAmountCollected}>{fmtNum(projFiltered.reduce((a, p) => a + p.collected_initial, 0))}</td>}
                     {show("coll_mid") && <td className={s.projAmountCollected}>{fmtNum(projFiltered.reduce((a, p) => a + p.collected_interim, 0))}</td>}
                     {show("coll_final") && <td className={s.projAmountCollected}>{fmtNum(projFiltered.reduce((a, p) => a + p.collected_final, 0))}</td>}

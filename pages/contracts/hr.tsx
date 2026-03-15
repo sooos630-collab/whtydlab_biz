@@ -23,7 +23,7 @@ const statusBadge = (st: string) => {
   switch (st) { case "재직": return s.badgeGreen; case "퇴직": return s.badgeGray; case "휴직": return s.badgeOrange; case "임시저장": return s.badgeOrange; default: return s.badgeGray; }
 };
 const typeBadge = (type: string) => {
-  switch (type) { case "정규직": return s.badgeBlue; case "계약직": return s.badgeOrange; default: return s.badgeGray; }
+  switch (type) { case "임원": return s.badgePurple ?? s.badgeGray; case "정규직": return s.badgeBlue; case "계약직": return s.badgeOrange; default: return s.badgeGray; }
 };
 const fileTypeBadge = (ft: string) => {
   switch (ft) { case "계약서": return s.badgeBlue; case "NDA": return s.badgeOrange; case "신분증": return s.badgePurple ?? s.badgeGray; case "통장사본": return s.badgeGreen; default: return s.badgeGray; }
@@ -275,17 +275,17 @@ export default function HrContractsPage() {
         <div className={s.pageHeader}>
           <h1>HR 계약관리 <span className={s.count}>재직 {activeCount}명 / 전체 {list.length}명{tempCount > 0 && ` (임시저장 ${tempCount}건)`}</span></h1>
           {activeTab === "employees" && (
-            <button className={`${s.btn} ${s.btnPrimary} ${s.btnSmall}`} onClick={() => setShowAdd(true)}>+ 직원 추가</button>
+            <button className={`${s.btn} ${s.btnPrimary} ${s.btnSmall}`} onClick={() => setShowAdd(true)}>+ 인원 추가</button>
           )}
         </div>
 
         <div className={s.modalStepper} style={{ marginBottom: 16 }}>
-          <button className={`${s.modalStepItem} ${activeTab === "employees" ? s.modalStepActive : ""}`} style={{ cursor: "pointer", border: "none", background: "none", fontFamily: "inherit" }} onClick={() => setActiveTab("employees")}>직원관리</button>
+          <button className={`${s.modalStepItem} ${activeTab === "employees" ? s.modalStepActive : ""}`} style={{ cursor: "pointer", border: "none", background: "none", fontFamily: "inherit" }} onClick={() => setActiveTab("employees")}>구성원관리</button>
           <button className={`${s.modalStepItem} ${activeTab === "templates" ? s.modalStepActive : ""}`} style={{ cursor: "pointer", border: "none", background: "none", fontFamily: "inherit" }} onClick={() => setActiveTab("templates")}>근로계약관리</button>
           <button className={`${s.modalStepItem} ${activeTab === "nda" ? s.modalStepActive : ""}`} style={{ cursor: "pointer", border: "none", background: "none", fontFamily: "inherit" }} onClick={() => setActiveTab("nda")}>비밀유지서약서</button>
         </div>
 
-        {/* ════════ 직원관리 탭 ════════ */}
+        {/* ════════ 구성원관리 탭 ════════ */}
         {activeTab === "employees" && (
           <>
           {/* 검색/필터 */}
@@ -349,7 +349,7 @@ export default function HrContractsPage() {
                 })}
                 {list.length === 0 && (
                   <tr><td colSpan={9} className={s.empty}>
-                    {search || statusFilter !== "전체" ? "검색 결과가 없습니다" : "등록된 직원이 없습니다"}
+                    {search || statusFilter !== "전체" ? "검색 결과가 없습니다" : "등록된 구성원이 없습니다"}
                   </td></tr>
                 )}
               </tbody>
@@ -362,7 +362,7 @@ export default function HrContractsPage() {
         {activeTab === "templates" && (
           <>
             <div style={{ fontSize: 12, color: "var(--color-text-tertiary)", marginBottom: 14 }}>
-              고용형태별 근로계약서 양식을 관리합니다. 직원 추가 시 해당 양식이 자동 적용됩니다.
+              고용형태별 근로계약서 양식을 관리합니다. 인원 추가 시 해당 양식이 자동 적용됩니다.
             </div>
             <div className={s.templateGrid}>
               {templates.map((t) => (
@@ -390,7 +390,7 @@ export default function HrContractsPage() {
         {activeTab === "nda" && (
           <>
             <div style={{ fontSize: 12, color: "var(--color-text-tertiary)", marginBottom: 14 }}>
-              비밀유지서약서 양식을 관리합니다. 직원 추가 시 자동으로 적용됩니다.
+              비밀유지서약서 양식을 관리합니다. 인원 추가 시 자동으로 적용됩니다.
             </div>
 
             <div className={s.section}>
@@ -434,9 +434,9 @@ export default function HrContractsPage() {
               )}
             </div>
 
-            {/* 직원별 NDA 현황 */}
+            {/* 구성원별 NDA 현황 */}
             <div className={s.section} style={{ marginTop: 14 }}>
-              <div style={{ fontSize: 14, fontWeight: 700, marginBottom: 12 }}>직원별 서약서 현황</div>
+              <div style={{ fontSize: 14, fontWeight: 700, marginBottom: 12 }}>구성원별 서약서 현황</div>
               <table className={s.table}>
                 <thead>
                   <tr>
@@ -480,7 +480,7 @@ export default function HrContractsPage() {
         )}
       </div>
 
-      {/* ════════ 직원 상세 모달 ════════ */}
+      {/* ════════ 구성원 상세 모달 ════════ */}
       {selectedId && selectedEmployee && editForm && (
         <div className={s.modalOverlay} onClick={(e) => e.target === e.currentTarget && closeDetail()}>
           <div className={s.modal} style={{ maxWidth: 860 }} onClick={(e) => e.stopPropagation()}>
@@ -543,7 +543,7 @@ export default function HrContractsPage() {
                     <div className={s.formGroup}><label className={s.formLabel}>직책</label><input className={s.formInput} value={editForm.position} disabled={!detailEditing} onChange={(e) => setEditForm({ ...editForm, position: e.target.value })} /></div>
                   </div>
                   <div className={s.formRow}>
-                    <div className={s.formGroup}><label className={s.formLabel}>고용형태</label>{detailEditing ? (<select className={s.formInput} value={editForm.type} onChange={(e) => setEditForm({ ...editForm, type: e.target.value as HrContract["type"] })}><option value="정규직">정규직</option><option value="계약직">계약직</option><option value="파트타임">파트타임</option><option value="인턴">인턴</option></select>) : (<input className={s.formInput} value={editForm.type} disabled />)}</div>
+                    <div className={s.formGroup}><label className={s.formLabel}>고용형태</label>{detailEditing ? (<select className={s.formInput} value={editForm.type} onChange={(e) => setEditForm({ ...editForm, type: e.target.value as HrContract["type"] })}><option value="임원">임원</option><option value="정규직">정규직</option><option value="계약직">계약직</option><option value="파트타임">파트타임</option><option value="인턴">인턴</option></select>) : (<input className={s.formInput} value={editForm.type} disabled />)}</div>
                     <div className={s.formGroup}><label className={s.formLabel}>상태</label>{detailEditing ? (<select className={s.formInput} value={editForm.status} onChange={(e) => setEditForm({ ...editForm, status: e.target.value as HrContract["status"] })}><option value="재직">재직</option><option value="퇴직">퇴직</option><option value="휴직">휴직</option></select>) : (<input className={s.formInput} value={editForm.status} disabled />)}</div>
                   </div>
                   <div className={s.formRow}>
@@ -680,7 +680,7 @@ export default function HrContractsPage() {
                         <div className={s.formGroup}>
                           <label className={s.formLabel}>고용형태</label>
                           <select className={s.formInput} value={renewalForm.type} onChange={(e) => setRenewalForm({ ...renewalForm, type: e.target.value as HrContract["type"] })}>
-                            <option value="정규직">정규직</option><option value="계약직">계약직</option><option value="파트타임">파트타임</option><option value="인턴">인턴</option>
+                            <option value="임원">임원</option><option value="정규직">정규직</option><option value="계약직">계약직</option><option value="파트타임">파트타임</option><option value="인턴">인턴</option>
                           </select>
                         </div>
                         <div className={s.formGroup}>

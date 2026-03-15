@@ -1,6 +1,6 @@
 // TODO: DB 연동 시 이 파일 삭제하고 Supabase로 교체
 
-export type ContractTemplateType = "정규직" | "계약직" | "파트타임" | "인턴";
+export type ContractTemplateType = "임원" | "정규직" | "계약직" | "파트타임" | "인턴";
 
 export interface ContractTemplate {
   type: ContractTemplateType;
@@ -15,7 +15,8 @@ export function fillTemplate(template: string, data: Record<string, string>): st
 }
 
 export function getTemplateByType(type: ContractTemplateType): ContractTemplate {
-  return defaultContractTemplates.find((t) => t.type === type)!;
+  return defaultContractTemplates.find((t) => t.type === type)
+    ?? defaultContractTemplates.find((t) => t.type === "정규직")!;
 }
 
 export const ndaTemplate = `<html><head><meta charset="utf-8"><style>

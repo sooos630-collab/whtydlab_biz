@@ -9,6 +9,8 @@ import {
 } from "@/data/contract-templates";
 
 type FormType = HrContract["type"];
+type ExecPayType = "월급제" | "수익분배" | "인센티브";
+
 
 interface AddForm {
   name: string;
@@ -25,6 +27,7 @@ interface AddForm {
   salary: string;
   bank_info: string;
   emergency_contact: string;
+  exec_pay_type: ExecPayType;
   contract_file: File | null;
   id_file: File | null;
   bank_file: File | null;
@@ -36,6 +39,7 @@ const emptyForm: AddForm = {
   phone: "", email: "", position: "", department: "",
   type: "정규직", start_date: "", end_date: "",
   salary: "", bank_info: "", emergency_contact: "",
+  exec_pay_type: "월급제",
   contract_file: null, id_file: null, bank_file: null, etc_files: [],
 };
 
@@ -43,13 +47,14 @@ const fmtSize = (b: number) =>
   b < 1024 * 1024 ? Math.round(b / 1024) + "KB" : (b / 1024 / 1024).toFixed(1) + "MB";
 
 const typeDescriptions: Record<FormType, { icon: string; desc: string }> = {
+  "임원": { icon: "🏛️", desc: "임원 위임계약 / 월급제·수익분배·인센티브 선택" },
   "정규직": { icon: "👔", desc: "무기한 근로계약 / 연봉제 / 퇴직금 적용" },
   "계약직": { icon: "📋", desc: "기간제 근로계약 / 월급제 / 갱신조건 포함" },
   "파트타임": { icon: "⏰", desc: "단시간 근로계약 / 시급 또는 월급 / 근무시간 명시" },
   "인턴": { icon: "🎓", desc: "수습 계약 / 평가 후 정규직 전환 가능" },
 };
 
-const steps = ["고용형태", "직원정보", "근로계약서", "비밀유지서약서", "완료"];
+const steps = ["고용형태", "구성원정보", "근로계약서", "비밀유지서약서", "완료"];
 
 export interface TempSaveData {
   employee: HrContract;
@@ -110,7 +115,7 @@ export default function HrContractModal({ onClose, onSave, onTempSave, resumeDat
     if (!form.position.trim()) errs.position = "직책을 입력하세요";
     if (!form.start_date) errs.start_date = "입사일을 입력하세요";
     if (!form.salary.trim()) errs.salary = "급여를 입력하세요";
-    if (form.type !== "정규직" && !form.end_date) errs.end_date = `${form.type}은 계약종료일 필수`;
+    if (form.type !== "정규직" && form.type !== "임원" && !form.end_date) errs.end_date = `${form.type}은 계약종료일 필수`;
     setErrors(errs);
     return Object.keys(errs).length === 0;
   };
@@ -220,7 +225,7 @@ export default function HrContractModal({ onClose, onSave, onTempSave, resumeDat
         {/* Header */}
         <div className={s.modalHeader}>
           <span>
-            {step === 1 ? "직원 추가" : step === 2 ? "직원정보 입력" : step === 3 ? "근로계약서 확인" : step === 4 ? "비밀유지서약서 확인" : "완료"}
+            {step === 1 ? "인원 추가" : step === 2 ? "구성원정보 입력" : step === 3 ? "근로계약서 확인" : step === 4 ? "비밀유지서약서 확인" : "완료"}
           </span>
           <button className={s.modalClose} onClick={onClose}>✕</button>
         </div>
@@ -246,7 +251,7 @@ export default function HrContractModal({ onClose, onSave, onTempSave, resumeDat
           {/* ── Step 1: 고용형태 선택 ── */}
           {step === 1 && (
             <div className={s.typeGrid}>
-              {(["정규직", "계약직", "파트타임", "인턴"] as FormType[]).map((type) => {
+              {(["임원", "정규직", "계약직", "파트타임", "인턴"] as FormType[]).map((type) => {
                 const d = typeDescriptions[type];
                 return (
                   <div key={type} className={`${s.typeCard} ${form.type === type ? s.typeCardActive : ""}`} onClick={() => selectType(type)}>
@@ -294,13 +299,41 @@ export default function HrContractModal({ onClose, onSave, onTempSave, resumeDat
                 <div className={s.formGroup}><label className={s.formLabel}>고용형태</label><input className={s.formInput} value={form.type} disabled /></div>
                 <div className={s.formGroup}><label className={s.formLabel}>직책 <span style={{ color: "var(--color-danger)" }}>*</span></label><input className={s.formInput} value={form.position} onChange={(e) => { setForm({ ...form, position: e.target.value }); setErrors((p) => { const n = { ...p }; delete n.position; return n; }); }} placeholder="팀장, 개발자 등" style={errors.position ? { borderColor: "var(--color-danger)" } : undefined} /><FieldError field="position" /></div>
               </div>
+              {form.type === "임원" && (
+                <div className={s.formGroup}>
+                  <label className={s.formLabel}>보수 유형 <span style={{ color: "var(--color-danger)" }}>*</span></label>
+                  <div style={{ display: "flex", gap: 8 }}>
+                    {(["월급제", "수익분배", "인센티브"] as ExecPayType[]).map((pt) => (
+                      <button
+                        key={pt}
+                        type="button"
+                        onClick={() => setForm({ ...form, exec_pay_type: pt })}
+                        style={{
+                          flex: 1, padding: "8px 0", fontSize: 12, fontWeight: form.exec_pay_type === pt ? 700 : 500,
+                          border: form.exec_pay_type === pt ? "2px solid var(--color-primary)" : "1px solid var(--color-border)",
+                          borderRadius: "var(--radius-sm)", cursor: "pointer",
+                          background: form.exec_pay_type === pt ? "rgba(49,130,246,0.06)" : "var(--color-white)",
+                          color: form.exec_pay_type === pt ? "var(--color-primary)" : "var(--color-text-secondary)",
+                        }}
+                      >
+                        {pt}
+                      </button>
+                    ))}
+                  </div>
+                  <span style={{ fontSize: 11, color: "var(--color-text-tertiary)", marginTop: 4 }}>
+                    {form.exec_pay_type === "월급제" && "고정 월급 지급 (근로소득)"}
+                    {form.exec_pay_type === "수익분배" && "프로젝트 순수익 기반 배분 (사업소득 3.3%)"}
+                    {form.exec_pay_type === "인센티브" && "기본급 + 성과 인센티브 혼합"}
+                  </span>
+                </div>
+              )}
               <div className={s.formRow}>
-                <div className={s.formGroup}><label className={s.formLabel}>{form.type === "정규직" ? "연봉" : "월 급여"} <span style={{ color: "var(--color-danger)" }}>*</span></label><input className={s.formInput} value={form.salary} onChange={(e) => { setForm({ ...form, salary: e.target.value }); setErrors((p) => { const n = { ...p }; delete n.salary; return n; }); }} placeholder={form.type === "정규직" ? "4,200만원" : "400만원"} style={errors.salary ? { borderColor: "var(--color-danger)" } : undefined} /><FieldError field="salary" /></div>
+                <div className={s.formGroup}><label className={s.formLabel}>{form.type === "임원" ? (form.exec_pay_type === "월급제" ? "월 보수" : form.exec_pay_type === "수익분배" ? "배분 비율" : "기본급") : form.type === "정규직" ? "연봉" : "월 급여"} <span style={{ color: "var(--color-danger)" }}>*</span></label><input className={s.formInput} value={form.salary} onChange={(e) => { setForm({ ...form, salary: e.target.value }); setErrors((p) => { const n = { ...p }; delete n.salary; return n; }); }} placeholder={form.type === "임원" ? (form.exec_pay_type === "수익분배" ? "50%" : "500만원") : form.type === "정규직" ? "4,200만원" : "400만원"} style={errors.salary ? { borderColor: "var(--color-danger)" } : undefined} /><FieldError field="salary" /></div>
                 <div className={s.formGroup}><label className={s.formLabel}>급여 계좌</label><input className={s.formInput} value={form.bank_info} onChange={(e) => setForm({ ...form, bank_info: e.target.value })} placeholder="은행명 계좌번호" /></div>
               </div>
               <div className={s.formRow}>
                 <div className={s.formGroup}><label className={s.formLabel}>입사일 <span style={{ color: "var(--color-danger)" }}>*</span></label><input className={s.formInput} type="date" value={form.start_date} onChange={(e) => { setForm({ ...form, start_date: e.target.value }); setErrors((p) => { const n = { ...p }; delete n.start_date; return n; }); }} style={errors.start_date ? { borderColor: "var(--color-danger)" } : undefined} /><FieldError field="start_date" /></div>
-                <div className={s.formGroup}><label className={s.formLabel}>계약종료일{form.type !== "정규직" && <span style={{ color: "var(--color-danger)" }}> *</span>}</label><input className={s.formInput} type="date" value={form.end_date} onChange={(e) => { setForm({ ...form, end_date: e.target.value }); setErrors((p) => { const n = { ...p }; delete n.end_date; return n; }); }} disabled={form.type === "정규직"} style={errors.end_date ? { borderColor: "var(--color-danger)" } : undefined} /><FieldError field="end_date" /></div>
+                <div className={s.formGroup}><label className={s.formLabel}>계약종료일{form.type !== "정규직" && form.type !== "임원" && <span style={{ color: "var(--color-danger)" }}> *</span>}</label><input className={s.formInput} type="date" value={form.end_date} onChange={(e) => { setForm({ ...form, end_date: e.target.value }); setErrors((p) => { const n = { ...p }; delete n.end_date; return n; }); }} disabled={form.type === "정규직" || form.type === "임원"} style={errors.end_date ? { borderColor: "var(--color-danger)" } : undefined} /><FieldError field="end_date" /></div>
               </div>
               <div className={s.formGroup}><label className={s.formLabel}>비상연락처</label><input className={s.formInput} value={form.emergency_contact} onChange={(e) => setForm({ ...form, emergency_contact: e.target.value })} placeholder="관계 010-0000-0000" /></div>
 
@@ -369,7 +402,7 @@ export default function HrContractModal({ onClose, onSave, onTempSave, resumeDat
               <div style={{ display: "flex", gap: 8, justifyContent: "center", marginTop: 20, flexWrap: "wrap" }}>
                 <button className={s.btn} onClick={() => handlePrint(contractHtml)}>🖨️ 근로계약서 인쇄</button>
                 <button className={s.btn} onClick={() => handlePrint(ndaHtml)}>🖨️ 비밀유지서약서 인쇄</button>
-                <button className={`${s.btn} ${s.btnPrimary}`} onClick={handleSave}>직원 추가 및 저장</button>
+                <button className={`${s.btn} ${s.btnPrimary}`} onClick={handleSave}>인원 추가 및 저장</button>
               </div>
             </div>
           )}

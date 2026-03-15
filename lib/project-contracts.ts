@@ -224,7 +224,12 @@ function ensurePaymentPhases(project: ProjectContract, previous?: ProjectContrac
     const currentPhase = getPhase(project, label);
     const previousPhase = getPhase(previous, label);
     const { billingKey, collectedKey } = PAYMENT_FIELD_MAP[label];
-    const amount = project[billingKey] || currentPhase?.amount || previousPhase?.amount || project[collectedKey] || 0;
+    // billing_* is now a percentage (e.g. 30 = 30%), calculate amount from total
+    const billingPct = project[billingKey] || 0;
+    const amountFromPct = billingPct > 0 && billingPct <= 100 && project.total_amount_num > 0
+      ? Math.round(project.total_amount_num * billingPct / 100)
+      : 0;
+    const amount = amountFromPct || currentPhase?.amount || previousPhase?.amount || project[collectedKey] || 0;
     const due_date = normalizeDate(currentPhase?.due_date) || normalizeDate(previousPhase?.due_date) || defaultDueDate(label, project);
     const paid = project[collectedKey] > 0;
     const paid_date = paid
@@ -302,6 +307,7 @@ export function createProjectDraft(existingProjects: ProjectContract[]) {
     client: "고객사 미정",
     description: "",
     progress: 0,
+    progress_stage: "시작전",
     acquisition_channel: "직접영업",
     invoice_issued: false,
     start_date: today,
@@ -309,9 +315,9 @@ export function createProjectDraft(existingProjects: ProjectContract[]) {
     supply_amount: 0,
     vat_amount: 0,
     total_amount_num: 0,
-    billing_initial: 0,
-    billing_interim: 0,
-    billing_final: 0,
+    billing_initial: 30,
+    billing_interim: 40,
+    billing_final: 30,
     collected_initial: 0,
     collected_interim: 0,
     collected_final: 0,
@@ -512,13 +518,13 @@ function getExportRows(projects: ProjectContract[]) {
       계약일: project.contract_date,
       시작일: project.start_date,
       종료일: project.end_date,
-      진척도: project.progress,
+      진척도: project.progress_stage,
       공급가액: project.supply_amount,
       부가세: project.vat_amount,
       총금액: project.total_amount_num,
-      착수금_청구: project.billing_initial,
-      중도금_청구: project.billing_interim,
-      잔금_청구: project.billing_final,
+      착수금_정산비율: `${project.billing_initial}%`,
+      중도금_정산비율: `${project.billing_interim}%`,
+      잔금_정산비율: `${project.billing_final}%`,
       착수금_수금: project.collected_initial,
       중도금_수금: project.collected_interim,
       잔금_수금: project.collected_final,
